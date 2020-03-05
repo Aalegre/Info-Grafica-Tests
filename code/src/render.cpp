@@ -23,8 +23,8 @@ namespace Axis {
 ////////////////
 
 namespace RenderVars {
-	const float FOV = glm::radians(65.f);
-	const float zNear = 1.f;
+	float FOV = glm::radians(65.f);
+	const float zNear = 0.001f;
 	const float zFar = 500.f;
 
 	glm::mat4 _projection;
@@ -39,8 +39,15 @@ namespace RenderVars {
 		bool waspressed = false;
 	} prevMouse;
 
+	const float initial_panv[3] = { 0.f, -5.f, -15.f };
+	const float MAX_panv[3] = { 0.f, 5.f, -50.f };
+	const float initial_rota[2] = { 0.f, 0.f };
+
 	float panv[3] = { 0.f, -5.f, -15.f };
 	float rota[2] = { 0.f, 0.f };
+	float width;
+
+	bool useDolly = false;
 }
 namespace RV = RenderVars;
 
@@ -489,6 +496,9 @@ void GLinit(int width, int height) {
 	matte->specularStrength = 0;
 	matte->lightStrength = 500;
 	matte->lightPosition = { 0,40,0 };
+
+	RV::width = tanf(RV::FOV / 2) * glm::abs(RV::panv[2]);
+
 }
 
 void GLcleanup() {
@@ -504,6 +514,14 @@ void GLcleanup() {
 void GLrender(float dt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//actualizar FOV
+	GLint m_viewport[4];
+	glGetIntegerv(GL_VIEWPORT, m_viewport);
+
+	RV::FOV = tanf(RV::width / glm::abs(RV::panv[2])) * 2;
+	RV::_projection = glm::perspective(RV::FOV, (float)m_viewport[2] / (float)m_viewport[3], RV::zNear, RV::zFar);
+
+
 	RV::_modelView = glm::mat4(1.f);
 
 	RV::_modelView = glm::translate(RV::_modelView,
@@ -514,6 +532,11 @@ void GLrender(float dt) {
 		glm::vec3(0.f, 1.f, 0.f));
 
 	RV::_MVP = RV::_projection * RV::_modelView;
+
+	if (RV::useDolly) {
+		float currentTime = ImGui::GetTime();
+		//TODO : do dolly with sinus
+	}
 
 	Axis::drawAxis();
 	Axis::drawAxis(chasis->lightPosition);
@@ -535,6 +558,34 @@ void GLrender(float dt) {
 	glass->drawObject();
 	matte->updateObject(t * r * s);
 	matte->drawObject();
+	
+	t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -10));
+	r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
+	chasis->updateObject(t * r * s);
+	chasis->drawObject();
+	chrome->updateObject(t * r * s);
+	chrome->drawObject();
+	rubber->updateObject(t * r * s);
+	rubber->drawObject();
+	glass->updateObject(t * r * s);
+	glass->drawObject();
+
+
+	t = glm::translate(glm::mat4(), glm::vec3(10, 0, -10));
+	r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, -1, 0));
+	chasis->updateObject(t * r * s);
+	chasis->drawObject();
+	chrome->updateObject(t * r * s);
+	chrome->drawObject();
+	rubber->updateObject(t * r * s);
+	rubber->drawObject();
+	glass->updateObject(t * r * s);
+	glass->drawObject();
+
+	
+
+
+
 
 	ImGui::Render();
 }
@@ -545,7 +596,9 @@ void GUI() {
 
 	{
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
+		ImGui::Text("center of action\n\tx: %.3f\n\ty: %.3f\n\tz: %.3f", RV::panv[0], RV::panv[1], RV::panv[2]);
+		ImGui::Text("center of rotation\n\tx: %.3f\n\ty: %.3f\n\tz: %.3f", RV::rota[0], RV::rota[1], RV::rota[2]);
+		ImGui::Text("FOV = %.3f", glm::degrees(RV::FOV));
 		/////////////////////////////////////////////////////TODO
 		// Do your GUI code here....
 		// ...
@@ -562,6 +615,20 @@ void GUI() {
 			rubber->lightPosition = lightPosition;
 			glass->lightPosition = lightPosition;
 		}
+
+		ImGui::SliderFloat("distance: ", &RV::panv[2], RV::initial_panv[2], RV::MAX_panv[2]);
+
+		if (ImGui::Button("reset transform", ImVec2(140, 30))) {
+			RV::panv[0] = RV::initial_panv[0];
+			RV::panv[1] = RV::initial_panv[1];
+			RV::panv[2] = RV::initial_panv[2];
+
+			RV::rota[0] = RV::initial_rota[0];
+			RV::rota[1] = RV::initial_rota[1];
+			RV::rota[2] = RV::initial_rota[2];
+		}
+
+		ImGui::Checkbox("Toogle Dolly", &RV::useDolly);
 	}
 	// .........................
 
