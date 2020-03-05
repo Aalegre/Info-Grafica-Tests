@@ -316,7 +316,7 @@ namespace Cube {
 /////////////////////////////////////////////////
 
 class Object {
-	//const char* path = "cube.obj";
+	//const char* path = "cube.3dobj";
 	const std::string path;
 	const std::string name;
 
@@ -376,7 +376,7 @@ private:
 	}
 
 public:
-	Object(const std::string & name_ = "Dragon", const std::string & path_ = "resources/dragon.obj") : name(name_), path(path_) {
+	Object(const std::string & name_ = "Dragon", const std::string & path_ = "resources/dragon.3dobj") : name(name_), path(path_) {
 		setupObject();
 	}
 	~Object() {
@@ -420,8 +420,8 @@ public:
 		ImGui::NewLine();
 		ImGui::Text("Light:");
 		ImGui::SliderFloat("Light Strength", &lightStrength, 0, 500);
-		ImGui::ColorEdit3("Light Color", &Object::lightColor[0]);
-		ImGui::DragFloat3("Light Position", &Object::lightPosition[0]);
+		ImGui::ColorEdit3("Light Color", &lightColor[0]);
+		ImGui::DragFloat3("Light Position", &lightPosition[0], .1f);
 		ImGui::End();
 	}
 
@@ -435,8 +435,12 @@ public:
 	}
 };
 
+
+bool globalLight = true;
+glm::vec3 lightPosition = { 0,10,5 };
+
 Object* chasis;
-Object* chorme;
+Object* chrome;
 Object* rubber;
 Object* glass;
 Object* matte;
@@ -461,26 +465,26 @@ void GLinit(int width, int height) {
 	// ...
 	// ...
 	/////////////////////////////////////////////////////////
-	chasis = new Object("Chasis", "resources/Chasis.obj");
+	chasis = new Object("Chasis", "resources/Chasis.3dobj");
 	chasis->colorAmbient = { .09f,.09f,.09f };
 	chasis->colorDiffuse = { 0,.4f,1 };
 	chasis->lightStrength = 100;
-	chorme = new Object("Chrome", "resources/Chrome.obj");
-	chorme->colorAmbient = { .1f,.1f,.1f };
-	chorme->colorDiffuse = { .15f,.15f,.15f };
-	chorme->specularStrength = 2;
-	chorme->lightStrength = 200;
-	rubber = new Object("Rubber", "resources/Rubber.obj");
+	chrome = new Object("Chrome", "resources/Chrome.3dobj");
+	chrome->colorAmbient = { .1f,.1f,.1f };
+	chrome->colorDiffuse = { .15f,.15f,.15f };
+	chrome->specularStrength = 2;
+	chrome->lightStrength = 200;
+	rubber = new Object("Rubber", "resources/Rubber.3dobj");
 	rubber->colorAmbient = { 0,0,0 };
 	rubber->colorDiffuse = { .4f,.4f,.4f };
 	rubber->specularStrength = .25f;
 	rubber->lightStrength = 75;
-	glass = new Object("Glass", "resources/Glass.obj");
+	glass = new Object("Glass", "resources/Glass.3dobj");
 	glass->colorAmbient = { 0,0,0 };
 	glass->colorDiffuse = { 0,0,0 };
 	glass->specularStrength = 2;
 	glass->lightStrength = 200;
-	matte = new Object("Background", "resources/Matte.obj");
+	matte = new Object("Background", "resources/Matte.3dobj");
 	matte->colorAmbient = { 0,0,0 };
 	matte->specularStrength = 0;
 	matte->lightStrength = 500;
@@ -491,7 +495,7 @@ void GLcleanup() {
 	Axis::cleanupAxis();
 	Cube::cleanupCube();
 	delete chasis;
-	delete chorme;
+	delete chrome;
 	delete rubber;
 	delete glass;
 	delete matte;
@@ -513,6 +517,9 @@ void GLrender(float dt) {
 
 	Axis::drawAxis();
 	Axis::drawAxis(chasis->lightPosition);
+	Axis::drawAxis(chrome->lightPosition);
+	Axis::drawAxis(rubber->lightPosition);
+	Axis::drawAxis(glass->lightPosition);
 
 	glm::mat4 t = glm::mat4(1.f);
 	glm::mat4 r = glm::mat4(1.f);
@@ -520,8 +527,8 @@ void GLrender(float dt) {
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 	chasis->updateObject(t * r * s);
 	chasis->drawObject();
-	chorme->updateObject(t * r * s);
-	chorme->drawObject();
+	chrome->updateObject(t * r * s);
+	chrome->drawObject();
 	rubber->updateObject(t * r * s);
 	rubber->drawObject();
 	glass->updateObject(t * r * s);
@@ -547,13 +554,21 @@ void GUI() {
 		/////////////////////////////////////////////////////////
 		//ImGui::DragFloat4("Color", &Object::color[0], .1f, 0, 0, "%.3f", .1f);
 		//ImGui::DragFloat4("Light Pos", &Object::light[0], .1f, 0, 0, "%.3f", .1f);
+		ImGui::Checkbox("Global Light", &globalLight);
+		if (globalLight) {
+			ImGui::DragFloat3("Global Light Position", &lightPosition[0], .1f);
+			chasis->lightPosition = lightPosition;
+			chrome->lightPosition = lightPosition;
+			rubber->lightPosition = lightPosition;
+			glass->lightPosition = lightPosition;
+		}
 	}
 	// .........................
 
 	ImGui::End();
 
 		chasis->drawGUI();
-		chorme->drawGUI();
+		chrome->drawGUI();
 		rubber->drawGUI();
 		glass->drawGUI();
 		matte->drawGUI();
