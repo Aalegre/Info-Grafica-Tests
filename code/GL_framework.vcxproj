@@ -141,8 +141,17 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <ClCompile Include="src\render.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="cube.frag" />
-    <None Include="cube.vert" />
+    <ClInclude Include="FileLoader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\axis.frag" />
+    <None Include="resources\axis.vert" />
+    <None Include="resources\cube.frag" />
+    <None Include="resources\cube.vert" />
+    <None Include="resources\phong.frag" />
+    <None Include="resources\phong.vert" />
+    <None Include="resources\unlit.frag" />
+    <None Include="resources\unlit.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

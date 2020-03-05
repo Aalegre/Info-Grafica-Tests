@@ -14,10 +14,31 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="cube.vert">
+    <ClInclude Include="FileLoader.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\cube.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="cube.frag">
+    <None Include="resources\cube.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\axis.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\axis.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\unlit.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\unlit.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\phong.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\phong.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
