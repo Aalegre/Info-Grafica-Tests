@@ -23,9 +23,12 @@ namespace Axis {
 ////////////////
 
 namespace RenderVars {
+	const float Initial_FOV = glm::radians(65.f);
 	float FOV = glm::radians(65.f);
 	const float zNear = 0.001f;
 	const float zFar = 500.f;
+	float autoDollyVel = 4.f;
+	int DollyDirection = -1;
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -39,15 +42,16 @@ namespace RenderVars {
 		bool waspressed = false;
 	} prevMouse;
 
-	const float initial_panv[3] = { 0.f, -5.f, -15.f };
-	const float MAX_panv[3] = { 0.f, 5.f, -50.f };
+	const float initial_panv[3] = { 0.f, -2.5f, -5.f };
+	const float MAX_panv[3] = { 0.f, -2.5f, -40.f };
 	const float initial_rota[2] = { 0.f, 0.f };
 
-	float panv[3] = { 0.f, -5.f, -15.f };
+	float panv[3] = { initial_panv[0],initial_panv[1], initial_panv[2] };
 	float rota[2] = { 0.f, 0.f };
 	float width;
 
 	bool useDolly = false;
+	bool lastDollyState = false;
 }
 namespace RV = RenderVars;
 
@@ -58,7 +62,7 @@ void GLResize(int width, int height) {
 }
 
 void GLmousecb(MouseEvent ev) {
-	if (RV::prevMouse.waspressed && RV::prevMouse.button == ev.button) {
+	if (RV::prevMouse.waspressed && RV::prevMouse.button == ev.button && !RV::useDolly) {
 		float diffx = ev.posx - RV::prevMouse.lastx;
 		float diffy = ev.posy - RV::prevMouse.lasty;
 		switch (ev.button) {
@@ -452,6 +456,16 @@ Object* rubber;
 Object* glass;
 Object* matte;
 
+void ResetPanV() {
+	RV::panv[0] = RV::initial_panv[0];
+	RV::panv[1] = RV::initial_panv[1];
+	RV::panv[2] = RV::initial_panv[2];
+
+	RV::rota[0] = RV::initial_rota[0];
+	RV::rota[1] = RV::initial_rota[1];
+	RV::FOV = RV::Initial_FOV;
+}
+
 void GLinit(int width, int height) {
 	glViewport(0, 0, width, height);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.f);
@@ -497,7 +511,7 @@ void GLinit(int width, int height) {
 	matte->lightStrength = 500;
 	matte->lightPosition = { 0,40,0 };
 
-	RV::width = tanf(RV::FOV / 2) * glm::abs(RV::panv[2]);
+	RV::width = tanf(RV::FOV / 2) * (glm::abs(RV::panv[2]));
 
 }
 
@@ -514,13 +528,10 @@ void GLcleanup() {
 void GLrender(float dt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//actualizar FOV
-	GLint m_viewport[4];
-	glGetIntegerv(GL_VIEWPORT, m_viewport);
-
-	RV::FOV = tanf(RV::width / glm::abs(RV::panv[2])) * 2;
-	RV::_projection = glm::perspective(RV::FOV, (float)m_viewport[2] / (float)m_viewport[3], RV::zNear, RV::zFar);
-
+	if (RV::lastDollyState != RV::useDolly) {
+		ResetPanV();
+		RV::lastDollyState = RV::useDolly;
+	}
 
 	RV::_modelView = glm::mat4(1.f);
 
@@ -534,8 +545,27 @@ void GLrender(float dt) {
 	RV::_MVP = RV::_projection * RV::_modelView;
 
 	if (RV::useDolly) {
+		//actualizar FOV
+		GLint m_viewport[4];
+		glGetIntegerv(GL_VIEWPORT, m_viewport);
+
+		RV::FOV = tanf(RV::width / glm::abs(RV::panv[2])) * 2;
+		RV::_projection = glm::perspective(RV::FOV, (float)m_viewport[2] / (float)m_viewport[3], RV::zNear, RV::zFar);
+
 		float currentTime = ImGui::GetTime();
-		//TODO : do dolly with sinus
+
+		if (RV::panv[2] >= RV::initial_panv[2])
+		{
+			RV::DollyDirection = -1;
+			RV::autoDollyVel = 4;
+		}
+		else if(RV::panv[2] <= RV::MAX_panv[2] )
+		{
+			RV::DollyDirection = 1;
+			RV::autoDollyVel = 4;
+		}
+		RV::panv[2] += RV::DollyDirection * RV::autoDollyVel * dt;
+		RV::autoDollyVel += 1*dt;
 	}
 
 	Axis::drawAxis();
@@ -544,7 +574,7 @@ void GLrender(float dt) {
 	Axis::drawAxis(rubber->lightPosition);
 	Axis::drawAxis(glass->lightPosition);
 
-	glm::mat4 t = glm::mat4(1.f);
+	glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, -10));
 	glm::mat4 r = glm::mat4(1.f);
 	float size = .5f;
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
@@ -559,7 +589,7 @@ void GLrender(float dt) {
 	matte->updateObject(t * r * s);
 	matte->drawObject();
 	
-	t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -10));
+	t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -20));
 	r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
 	chasis->updateObject(t * r * s);
 	chasis->drawObject();
@@ -571,7 +601,7 @@ void GLrender(float dt) {
 	glass->drawObject();
 
 
-	t = glm::translate(glm::mat4(), glm::vec3(10, 0, -10));
+	t = glm::translate(glm::mat4(), glm::vec3(10, 0, -20));
 	r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, -1, 0));
 	chasis->updateObject(t * r * s);
 	chasis->drawObject();
@@ -581,10 +611,6 @@ void GLrender(float dt) {
 	rubber->drawObject();
 	glass->updateObject(t * r * s);
 	glass->drawObject();
-
-	
-
-
 
 
 	ImGui::Render();
@@ -617,15 +643,13 @@ void GUI() {
 		}
 
 		ImGui::SliderFloat("distance: ", &RV::panv[2], RV::initial_panv[2], RV::MAX_panv[2]);
+		ImGui::SliderFloat("Dolly Velocity: ", &RV::autoDollyVel, 0.001f, 20.f);
 
 		if (ImGui::Button("reset transform", ImVec2(140, 30))) {
-			RV::panv[0] = RV::initial_panv[0];
-			RV::panv[1] = RV::initial_panv[1];
-			RV::panv[2] = RV::initial_panv[2];
-
-			RV::rota[0] = RV::initial_rota[0];
-			RV::rota[1] = RV::initial_rota[1];
-			RV::rota[2] = RV::initial_rota[2];
+			ResetPanV();
+		}
+		if (ImGui::Button("Invert Dolly", ImVec2(140, 30))) {
+			RV::DollyDirection *= -1;
 		}
 
 		ImGui::Checkbox("Toogle Dolly", &RV::useDolly);
