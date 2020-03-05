@@ -7,7 +7,7 @@ out vec4		frag_Normal;
 out vec4		frag_Pos;
 		
 void main(){
-	gl_Position = mvpMat * objMat * vec4(in_Position, 1.0);;
+	gl_Position = mvpMat * objMat * vec4(in_Position, 1.0);
 	frag_Normal = objMat * vec4(in_Normal, 0.0);
 	frag_Pos = objMat * vec4(in_Position, 1.0);
 }
