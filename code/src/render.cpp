@@ -25,7 +25,7 @@ namespace Axis {
 namespace RenderVars {
 	const float FOV = glm::radians(65.f);
 	const float zNear = 1.f;
-	const float zFar = 200.f;
+	const float zFar = 500.f;
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -315,9 +315,10 @@ namespace Cube {
 
 /////////////////////////////////////////////////
 
-namespace Object {
+class Object {
 	//const char* path = "cube.obj";
-	const char* path = "resources/dragon.obj";
+	const std::string path;
+	const std::string name;
 
 	std::vector <glm::vec3> vertices;
 	std::vector <glm::vec2> uvs;
@@ -330,18 +331,19 @@ namespace Object {
 
 	glm::mat4 objMat;
 
-	glm::vec4 colorAmbient = {.1f,.1f,.1f,.1f};
-	glm::vec4 colorDiffuse = { 1,1,1,1 };
-	glm::vec4 colorSpecular = { 1,1,1,1 };
+public:
+	glm::vec3 colorAmbient = { .1f,.1f,.1f };
+	glm::vec3 colorDiffuse = { 1,1,1 };
+	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::float32 specularStrength = 1;
 
-	glm::vec4 lightColor = { 1,1,1,1 };
-	glm::vec4 lightPosition = { 0,10,0,0 };
+	glm::vec3 lightColor = { 1,1,1 };
+	glm::vec3 lightPosition = { 0,10,5 };
 	glm::float32 lightStrength = 10;
 
-
+private:
 	void setupObject() {
-		bool res = FileLoader::LoadOBJ(path, vertices, uvs, normals);
+		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
 
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -373,6 +375,15 @@ namespace Object {
 		objMat = glm::mat4(1.f);
 	}
 
+public:
+	Object(const std::string & name_ = "Dragon", const std::string & path_ = "resources/dragon.obj") : name(name_), path(path_) {
+		setupObject();
+	}
+	~Object() {
+		cleanupObject();
+	}
+
+
 	void updateObject(glm::mat4 matrix) {
 		objMat = matrix;
 	}
@@ -384,17 +395,34 @@ namespace Object {
 		glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
 		glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
 		glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
-		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, colorAmbient.w);
-		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, colorDiffuse.w);
-		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, colorSpecular.w);
+		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
+		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
+		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
 		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
-		glUniform4f(glGetUniformLocation(program, "_light_color"), lightColor.x, lightColor.y, lightColor.z, lightColor.w);
-		glUniform4f(glGetUniformLocation(program, "_light_position"), lightPosition.x, lightPosition.y, lightPosition.z, lightPosition.w);
+		glUniform4f(glGetUniformLocation(program, "_light_color"), lightColor.x, lightColor.y, lightColor.z, 0);
+		glUniform4f(glGetUniformLocation(program, "_light_position"), lightPosition.x, lightPosition.y, lightPosition.z, 0);
 		glUniform1f(glGetUniformLocation(program, "_light_strength"), lightStrength);
 		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 		glUseProgram(0);
 		glBindVertexArray(0);
+	}
+
+	void drawGUI() {
+		ImGui::Begin(name.c_str());
+
+		ImGui::Text("Material:");
+		ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
+		ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
+		ImGui::ColorEdit3("Specular", &colorSpecular[0]);
+		ImGui::SliderFloat("Specular Strength", &specularStrength, 0, 2);
+
+		ImGui::NewLine();
+		ImGui::Text("Light:");
+		ImGui::SliderFloat("Light Strength", &lightStrength, 0, 500);
+		ImGui::ColorEdit3("Light Color", &Object::lightColor[0]);
+		ImGui::DragFloat3("Light Position", &Object::lightPosition[0]);
+		ImGui::End();
 	}
 
 	void cleanupObject() {
@@ -405,7 +433,13 @@ namespace Object {
 		glDeleteShader(shaders[0]);
 		glDeleteShader(shaders[1]);
 	}
-}
+};
+
+Object* chasis;
+Object* chorme;
+Object* rubber;
+Object* glass;
+Object* matte;
 
 void GLinit(int width, int height) {
 	glViewport(0, 0, width, height);
@@ -427,14 +461,40 @@ void GLinit(int width, int height) {
 	// ...
 	// ...
 	/////////////////////////////////////////////////////////
-
-	Object::setupObject();
+	chasis = new Object("Chasis", "resources/Chasis.obj");
+	chasis->colorAmbient = { .09f,.09f,.09f };
+	chasis->colorDiffuse = { 0,.4f,1 };
+	chasis->lightStrength = 100;
+	chorme = new Object("Chrome", "resources/Chrome.obj");
+	chorme->colorAmbient = { .1f,.1f,.1f };
+	chorme->colorDiffuse = { .15f,.15f,.15f };
+	chorme->specularStrength = 2;
+	chorme->lightStrength = 200;
+	rubber = new Object("Rubber", "resources/Rubber.obj");
+	rubber->colorAmbient = { 0,0,0 };
+	rubber->colorDiffuse = { .4f,.4f,.4f };
+	rubber->specularStrength = .25f;
+	rubber->lightStrength = 75;
+	glass = new Object("Glass", "resources/Glass.obj");
+	glass->colorAmbient = { 0,0,0 };
+	glass->colorDiffuse = { 0,0,0 };
+	glass->specularStrength = 2;
+	glass->lightStrength = 200;
+	matte = new Object("Background", "resources/Matte.obj");
+	matte->colorAmbient = { 0,0,0 };
+	matte->specularStrength = 0;
+	matte->lightStrength = 500;
+	matte->lightPosition = { 0,40,0 };
 }
 
 void GLcleanup() {
 	Axis::cleanupAxis();
 	Cube::cleanupCube();
-	Object::cleanupObject();
+	delete chasis;
+	delete chorme;
+	delete rubber;
+	delete glass;
+	delete matte;
 }
 
 void GLrender(float dt) {
@@ -452,14 +512,22 @@ void GLrender(float dt) {
 	RV::_MVP = RV::_projection * RV::_modelView;
 
 	Axis::drawAxis();
-	Axis::drawAxis(Object::lightPosition);
+	Axis::drawAxis(chasis->lightPosition);
 
 	glm::mat4 t = glm::mat4(1.f);
 	glm::mat4 r = glm::mat4(1.f);
 	float size = .5f;
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-	Object::updateObject(t * r * s);
-	Object::drawObject();
+	chasis->updateObject(t * r * s);
+	chasis->drawObject();
+	chorme->updateObject(t * r * s);
+	chorme->drawObject();
+	rubber->updateObject(t * r * s);
+	rubber->drawObject();
+	glass->updateObject(t * r * s);
+	glass->drawObject();
+	matte->updateObject(t * r * s);
+	matte->drawObject();
 
 	ImGui::Render();
 }
@@ -479,19 +547,16 @@ void GUI() {
 		/////////////////////////////////////////////////////////
 		//ImGui::DragFloat4("Color", &Object::color[0], .1f, 0, 0, "%.3f", .1f);
 		//ImGui::DragFloat4("Light Pos", &Object::light[0], .1f, 0, 0, "%.3f", .1f);
-		ImGui::ColorEdit3("Ambient", &Object::colorAmbient[0]);
-		ImGui::ColorEdit3("Diffuse", &Object::colorDiffuse[0]);
-		ImGui::ColorEdit3("Specular", &Object::colorSpecular[0]);
-
-		ImGui::SliderFloat("Specular Strength", &Object::specularStrength, 0,1);
-		ImGui::SliderFloat("Light Strength", &Object::lightStrength, 0,100);
-		ImGui::ColorEdit3("Light Color", &Object::lightColor[0]);
-		ImGui::DragFloat3("Light Position", &Object::lightPosition[0]);
 	}
 	// .........................
 
 	ImGui::End();
 
+		chasis->drawGUI();
+		chorme->drawGUI();
+		rubber->drawGUI();
+		glass->drawGUI();
+		matte->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {
