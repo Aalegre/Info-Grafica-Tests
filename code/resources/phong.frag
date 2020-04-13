@@ -20,28 +20,24 @@ struct PointLight {
     vec4 position;
     vec4 color;
 	float strength;
-	vec4 getDiffuse(vec4 nor, vec4 pos, vec4 col)
+	vec4 getDiffuse(vec4 d_vertexNormal, vec4 d_vertexPosition, vec4 d_diffuseColor)
 	{
-		vec4 frag_Normal_n = normalize(nor);
-		vec4 light_direction = normalize(position - pos);
-		float light_distance = distance(position, pos);
-		vec4 diffuse = max(dot(frag_Normal_n, light_direction), 0)
-			* col * color * strength
-			/ (light_distance*light_distance);
-		return diffuse;
+		vec4 d_light_direction = normalize(position - d_vertexPosition);
+		float d_light_distance = distance(position, d_vertexPosition);
+		return max(dot(d_vertexNormal, d_light_direction), 0)
+			* d_diffuseColor * color * strength
+			/ (d_light_distance*d_light_distance);
 	}
-	vec4 getSpecular(vec4 nor, vec4 pos, mat4 modelView, vec4 col, float str)
+	vec4 getSpecular(vec4 s_vertexNormal, vec4 s_vertexPosition, vec4 s_specularColor, mat4 s_modelView, float s_strength)
 	{
-		vec4 frag_Normal_n = normalize(nor);
-		vec4 light_direction = normalize(position - pos);
-		float light_distance = distance(position, pos);
-		vec4 _camera_position = inverse(modelView)[3];
-		vec4 _camera_direction = normalize(_camera_position - pos);
-		vec4 _ref_direction = reflect(-light_direction, frag_Normal_n);
-		vec4 specular = pow(max(dot(_camera_direction, _ref_direction), 0.0), 32)
-			* col * color * strength * str
-			/ (light_distance*light_distance);
-		return specular;
+		vec4 s_light_direction = normalize(position - s_vertexPosition);
+		float s_light_distance = distance(position, s_vertexPosition);
+		vec4 s_camera_position = inverse(s_modelView)[3];
+		vec4 s_camera_direction = normalize(s_camera_position - s_vertexPosition);
+		vec4 s_ref_direction = reflect(-s_light_direction, s_vertexNormal);
+		return pow(max(dot(s_camera_direction, s_ref_direction), 0.0), 32)
+			* s_specularColor * color * strength * s_strength
+			/ (s_light_distance*s_light_distance);
 	}
 };
 
@@ -53,11 +49,12 @@ void main(){
 
 	vec4 diffuse;
 	vec4 specular;
-
+	
+	vec4 frag_Normal_n = normalize(frag_Normal);
 	for	(int i = 0; i < LIGHT_POINT_MAX; i++){
 		if(lights[i].enabled){
-			diffuse += lights[i].getDiffuse(frag_Normal, frag_Pos, _color_diffuse);
-			specular += lights[i].getSpecular(frag_Normal, frag_Pos, mv_Mat, _color_specular, _specular_strength);
+			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, _color_diffuse);
+			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, _color_specular, mv_Mat, _specular_strength);
 		}
 	}
 

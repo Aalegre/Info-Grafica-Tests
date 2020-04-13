@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cassert>
 #include <vector>
+#include <stdlib.h>
+#include <time.h>
 
 #include <imgui\imgui.h>
 #include <imgui\imgui_impl_sdl_gl3.h>
@@ -328,7 +330,7 @@ namespace Cube {
 
 struct Light {
 	glm::vec3 color = { 1,1,1 };
-	glm::vec3 position = { 0,10,5 };
+	glm::vec3 position = { 0,5,2 };
 	glm::float32 strength = 10;
 };
 
@@ -352,7 +354,7 @@ class Object {
 	glm::mat4 objMat;
 
 public:
-	glm::vec3 colorAmbient = { .1f,.1f,.1f };
+	glm::vec3 colorAmbient = { 0,0,0 };
 	glm::vec3 colorDiffuse = { 1,1,1 };
 	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::float32 specularStrength = 1;
@@ -482,6 +484,7 @@ void ResetPanV() {
 }
 
 void GLinit(int width, int height) {
+	srand(time(NULL));
 	glViewport(0, 0, width, height);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.f);
 	glClearDepth(1.f);
@@ -502,8 +505,6 @@ void GLinit(int width, int height) {
 	// ...
 	/////////////////////////////////////////////////////////
 	cubeObj = new Object();
-	cubeObj->colorAmbient = { .09f,.09f,.09f };
-	cubeObj->colorDiffuse = { 0,.4f,1 };
 
 	lights.push_back(Light());
 
@@ -610,6 +611,7 @@ void GUI() {
 		ImGui::SliderInt("Lights", &newLightsSize, 0, MAX_LIGHTS);
 		for (size_t i = 0; i < lights.size(); i++)
 		{
+			ImGui::Spacing();
 			std::string name = std::to_string(i);
 			name += " position";
 			ImGui::DragFloat3(name.c_str(), &lights.at(i).position[0], .01f);
@@ -629,12 +631,21 @@ void GUI() {
 			}
 			else {
 				while (previousLightSize != newLightsSize) {
-					lights.push_back(Light());
+					Light newLight;
+					newLight.strength = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 10;
+					newLight.color.x = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+					newLight.color.y = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+					newLight.color.z = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+					newLight.position.x = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
+					newLight.position.y = ((static_cast <float> (rand()) / static_cast <float> (RAND_MAX))) * 2 + 1;
+					newLight.position.z = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
+					lights.push_back(newLight);
 					newLightsSize--;
 				}
 			}
 		}
 
+		ImGui::NewLine();
 		ImGui::SliderFloat("distance: ", &RV::panv[2], RV::initial_panv[2], RV::MAX_panv[2]);
 		ImGui::SliderFloat("Dolly Velocity: ", &RV::autoDollyVel, 0.001f, 20.f);
 
