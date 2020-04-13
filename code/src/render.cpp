@@ -13,6 +13,9 @@
 #include "GL_framework.h"
 #include "../FileLoader.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "../stb_image.h"
+
 ///////// fw decl
 namespace ImGui {
 	void Render();
@@ -328,6 +331,40 @@ namespace Cube {
 
 /////////////////////////////////////////////////
 
+struct Texture {
+	int width = 1024, height = 1024, nrChannels = 4;
+	std::string path;
+	unsigned char* data;
+	unsigned int texture;
+	void Load() {
+		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
+		if (data)
+		{
+			switch (nrChannels) {
+			case 3:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+				//glGenerateMipmap(GL_TEXTURE_2D);
+				break;
+			case 4:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+				//glGenerateMipmap(GL_TEXTURE_2D);
+				break;
+			}
+		}
+		else
+		{
+			std::cout << "Failed to load texture" << std::endl;
+		}
+		stbi_image_free(data);
+	}
+};
+
 struct Light {
 	glm::vec3 color = { 1,1,1 };
 	glm::vec3 position = { 0,5,2 };
@@ -345,9 +382,11 @@ class Object {
 	std::vector <glm::vec3> vertices;
 	std::vector <glm::vec2> uvs;
 	std::vector <glm::vec3> normals;
+	std::vector <glm::vec3> tangents;
+	std::vector <glm::vec3> bitangents;
 
 	GLuint vao;
-	GLuint vbo[2];
+	GLuint vbo[5];
 	GLuint shaders[2];
 	GLuint program;
 
@@ -359,13 +398,18 @@ public:
 	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::float32 specularStrength = 1;
 
+	Texture albedo;
+	Texture normal;
+	Texture specular;
+
 private:
 	void setupObject() {
 		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
+		computeTB();
 
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
-		glGenBuffers(2, vbo);
+		glGenBuffers(5, vbo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
@@ -377,6 +421,21 @@ private:
 		glVertexAttribPointer((GLuint)1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(1);
 
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec3), &uvs[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(2);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
+		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec3), &tangents[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)3, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(3);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec3), &bitangents[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)4, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(4);
+
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -386,11 +445,62 @@ private:
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
+
+		albedo.path = "resources/MetalPaint_AlbedoTransparency.png";
+		albedo.nrChannels = 3;
+		albedo.Load();
+		normal.path = "resources/MetalPaint_Normal.png";
+		normal.nrChannels = 3;
+		normal.Load();
+		specular.path = "resources/MetalPaint_SpecularSmoothness.png";
+		specular.Load();
+
+
 		glBindAttribLocation(program, 0, "in_Position");
 		glBindAttribLocation(program, 1, "in_Normal");
+		glBindAttribLocation(program, 2, "in_UVs");
+		glBindAttribLocation(program, 3, "in_Tangent");
+		glBindAttribLocation(program, 4, "in_BiTangent");
 		linkProgram(program);
 
 		objMat = glm::mat4(1.f);
+
+	}
+	void computeTB() {
+		for (int i = 0; i < vertices.size(); i += 3) {
+
+			// Shortcuts for vertices
+			glm::vec3& v0 = vertices[i + 0];
+			glm::vec3& v1 = vertices[i + 1];
+			glm::vec3& v2 = vertices[i + 2];
+
+			// Shortcuts for UVs
+			glm::vec2& uv0 = uvs[i + 0];
+			glm::vec2& uv1 = uvs[i + 1];
+			glm::vec2& uv2 = uvs[i + 2];
+
+			// Edges of the triangle : postion delta
+			glm::vec3 deltaPos1 = v1 - v0;
+			glm::vec3 deltaPos2 = v2 - v0;
+
+			// UV delta
+			glm::vec2 deltaUV1 = uv1 - uv0;
+			glm::vec2 deltaUV2 = uv2 - uv0;
+
+			float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+			glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+			glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
+
+			tangents.push_back(tangent);
+			tangents.push_back(tangent);
+			tangents.push_back(tangent);
+
+			// Same thing for binormals
+			bitangents.push_back(bitangent);
+			bitangents.push_back(bitangent);
+			bitangents.push_back(bitangent);
+
+		}
 	}
 
 public:
@@ -417,6 +527,19 @@ public:
 		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
 		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
 		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
+
+		glUniform1i(glGetUniformLocation(program, "_albedo"), 0);
+		glUniform1i(glGetUniformLocation(program, "_normal"), 1);
+		glUniform1i(glGetUniformLocation(program, "_specular"), 2);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, albedo.texture);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, normal.texture);
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, specular.texture);
 		for (size_t i = 0; i < MAX_LIGHTS; i++)
 		{
 			std::string name = "lights[";

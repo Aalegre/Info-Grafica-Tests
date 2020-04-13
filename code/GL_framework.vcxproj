@@ -142,6 +142,7 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileLoader.h" />
+    <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\axis.frag" />

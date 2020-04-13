@@ -2,6 +2,9 @@
 		
 in vec4			frag_Normal;
 in vec4			frag_Pos;
+in vec2			frag_UVs;
+in vec4			frag_BiTangent;
+in mat3			frag_TBN;
 
 out vec4		out_Color;
 
@@ -12,6 +15,11 @@ uniform vec4	_color_diffuse;
 uniform vec4	_color_ambient;
 uniform vec4	_color_specular;
 uniform float	_specular_strength;
+
+
+uniform sampler2D _albedo;
+uniform sampler2D _normal;
+uniform sampler2D _specular;
 
 #define LIGHT_POINT_MAX 16
 
@@ -49,12 +57,13 @@ void main(){
 
 	vec4 diffuse;
 	vec4 specular;
-	
+	vec4 fixed_normal_tex = (texture(_normal, frag_UVs ) * 2.0 - 1.0);
 	vec4 frag_Normal_n = normalize(frag_Normal);
+	vec4 specular_tex = texture(_specular, frag_UVs);
 	for	(int i = 0; i < LIGHT_POINT_MAX; i++){
 		if(lights[i].enabled){
-			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, _color_diffuse);
-			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, _color_specular, mv_Mat, _specular_strength);
+			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, texture(_albedo, frag_UVs) * _color_diffuse);
+			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, specular_tex * _color_specular, mv_Mat, specular_tex.a * _specular_strength);
 		}
 	}
 

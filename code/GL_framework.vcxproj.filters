@@ -18,6 +18,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileLoader.h" />
+    <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\unlit.vert">
