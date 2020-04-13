@@ -12,6 +12,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{e2c35790-aa46-40e8-a49f-cc823332c01e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Textures">
+      <UniqueIdentifier>{899d1b57-e4e5-46bb-a822-cea7e308fedf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileLoader.h" />
@@ -41,5 +44,16 @@
     <None Include="resources\cube_org.frag">
       <Filter>Shaders</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="resources\MetalPaint_AlbedoTransparency.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\MetalPaint_Normal.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\MetalPaint_SpecularSmoothness.png">
+      <Filter>Textures</Filter>
+    </Image>
   </ItemGroup>
 </Project>
