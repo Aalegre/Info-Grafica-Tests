@@ -17,28 +17,28 @@
     <ClInclude Include="FileLoader.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="resources\cube.frag">
+    <None Include="resources\unlit.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="resources\cube.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\axis.frag">
+    <None Include="resources\phong.vert">
       <Filter>Shaders</Filter>
     </None>
     <None Include="resources\axis.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="resources\unlit.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\unlit.vert">
+    <None Include="resources\axis.frag">
       <Filter>Shaders</Filter>
     </None>
     <None Include="resources\phong.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="resources\phong.vert">
+    <None Include="resources\unlit.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\cube_org.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\cube_org.frag">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

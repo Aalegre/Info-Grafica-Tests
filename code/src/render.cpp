@@ -286,8 +286,8 @@ namespace Cube {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-		cubeShaders[0] = compileShader(FileLoader::LoadString("resources/cube.vert").c_str(), GL_VERTEX_SHADER, "cubeVert");
-		cubeShaders[1] = compileShader(FileLoader::LoadString("resources/cube.frag").c_str(), GL_FRAGMENT_SHADER, "cubeFrag");
+		cubeShaders[0] = compileShader(FileLoader::LoadString("resources/cube_org.vert").c_str(), GL_VERTEX_SHADER, "cubeVert");
+		cubeShaders[1] = compileShader(FileLoader::LoadString("resources/cube_org.frag").c_str(), GL_FRAGMENT_SHADER, "cubeFrag");
 
 		cubeProgram = glCreateProgram();
 		glAttachShader(cubeProgram, cubeShaders[0]);
@@ -326,6 +326,15 @@ namespace Cube {
 
 /////////////////////////////////////////////////
 
+struct Light {
+	glm::vec3 color = { 1,1,1 };
+	glm::vec3 position = { 0,10,5 };
+	glm::float32 strength = 10;
+};
+
+const int MAX_LIGHTS = 16;
+std::vector<Light> lights;
+
 class Object {
 	//const char* path = "cube.3dobj";
 	const std::string path;
@@ -347,10 +356,6 @@ public:
 	glm::vec3 colorDiffuse = { 1,1,1 };
 	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::float32 specularStrength = 1;
-
-	glm::vec3 lightColor = { 1,1,1 };
-	glm::vec3 lightPosition = { 0,10,5 };
-	glm::float32 lightStrength = 10;
 
 private:
 	void setupObject() {
@@ -387,7 +392,7 @@ private:
 	}
 
 public:
-	Object(const std::string & name_ = "Dragon", const std::string & path_ = "resources/dragon.3dobj") : name(name_), path(path_) {
+	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/cube.3dobj") : name(name_), path(path_) {
 		setupObject();
 	}
 	~Object() {
@@ -410,9 +415,32 @@ public:
 		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
 		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
 		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
-		glUniform4f(glGetUniformLocation(program, "_light_color"), lightColor.x, lightColor.y, lightColor.z, 0);
-		glUniform4f(glGetUniformLocation(program, "_light_position"), lightPosition.x, lightPosition.y, lightPosition.z, 0);
-		glUniform1f(glGetUniformLocation(program, "_light_strength"), lightStrength);
+		for (size_t i = 0; i < MAX_LIGHTS; i++)
+		{
+			std::string name = "lights[";
+			name += std::to_string(i);
+			name += "].enabled";
+			glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
+		}
+		for (size_t i = 0; i < lights.size(); i++)
+		{
+			std::string name = "lights[";
+			name += std::to_string(i);
+			name += "].enabled";
+			glUniform1i(glGetUniformLocation(program, name.c_str()), 1);
+			name = "lights[";
+			name += std::to_string(i);
+			name += "].position";
+			glUniform4f(glGetUniformLocation(program, name.c_str()), lights.at(i).position.x, lights.at(i).position.y, lights.at(i).position.z, 0);
+			name = "lights[";
+			name += std::to_string(i);
+			name += "].color";
+			glUniform4f(glGetUniformLocation(program, name.c_str()), lights.at(i).color.x, lights.at(i).color.y, lights.at(i).color.z, 0);
+			name = "lights[";
+			name += std::to_string(i);
+			name += "].strength";
+			glUniform1f(glGetUniformLocation(program, name.c_str()), lights.at(i).strength);
+		}
 		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 		glUseProgram(0);
@@ -427,12 +455,6 @@ public:
 		ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
 		ImGui::ColorEdit3("Specular", &colorSpecular[0]);
 		ImGui::SliderFloat("Specular Strength", &specularStrength, 0, 2);
-
-		ImGui::NewLine();
-		ImGui::Text("Light:");
-		ImGui::SliderFloat("Light Strength", &lightStrength, 0, 500);
-		ImGui::ColorEdit3("Light Color", &lightColor[0]);
-		ImGui::DragFloat3("Light Position", &lightPosition[0], .1f);
 		ImGui::End();
 	}
 
@@ -447,14 +469,7 @@ public:
 };
 
 
-bool globalLight = true;
-glm::vec3 lightPosition = { 0,10,5 };
-
-Object* chasis;
-Object* chrome;
-Object* rubber;
-Object* glass;
-Object* matte;
+Object* cubeObj;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -486,30 +501,11 @@ void GLinit(int width, int height) {
 	// ...
 	// ...
 	/////////////////////////////////////////////////////////
-	chasis = new Object("Chasis", "resources/Chasis.3dobj");
-	chasis->colorAmbient = { .09f,.09f,.09f };
-	chasis->colorDiffuse = { 0,.4f,1 };
-	chasis->lightStrength = 100;
-	chrome = new Object("Chrome", "resources/Chrome.3dobj");
-	chrome->colorAmbient = { .1f,.1f,.1f };
-	chrome->colorDiffuse = { .15f,.15f,.15f };
-	chrome->specularStrength = 2;
-	chrome->lightStrength = 200;
-	rubber = new Object("Rubber", "resources/Rubber.3dobj");
-	rubber->colorAmbient = { 0,0,0 };
-	rubber->colorDiffuse = { .4f,.4f,.4f };
-	rubber->specularStrength = .25f;
-	rubber->lightStrength = 75;
-	glass = new Object("Glass", "resources/Glass.3dobj");
-	glass->colorAmbient = { 0,0,0 };
-	glass->colorDiffuse = { 0,0,0 };
-	glass->specularStrength = 2;
-	glass->lightStrength = 200;
-	matte = new Object("Background", "resources/Matte.3dobj");
-	matte->colorAmbient = { 0,0,0 };
-	matte->specularStrength = 0;
-	matte->lightStrength = 500;
-	matte->lightPosition = { 0,40,0 };
+	cubeObj = new Object();
+	cubeObj->colorAmbient = { .09f,.09f,.09f };
+	cubeObj->colorDiffuse = { 0,.4f,1 };
+
+	lights.push_back(Light());
 
 	RV::width = tanf(RV::FOV / 2) * (glm::abs(RV::panv[2]));
 
@@ -517,12 +513,7 @@ void GLinit(int width, int height) {
 
 void GLcleanup() {
 	Axis::cleanupAxis();
-	Cube::cleanupCube();
-	delete chasis;
-	delete chrome;
-	delete rubber;
-	delete glass;
-	delete matte;
+	delete cubeObj;
 }
 
 void GLrender(float dt) {
@@ -569,48 +560,28 @@ void GLrender(float dt) {
 	}
 
 	Axis::drawAxis();
-	Axis::drawAxis(chasis->lightPosition);
-	Axis::drawAxis(chrome->lightPosition);
-	Axis::drawAxis(rubber->lightPosition);
-	Axis::drawAxis(glass->lightPosition);
+	for (size_t i = 0; i < lights.size(); i++)
+	{
+		Axis::drawAxis(lights.at(i).position);
+	}
 
-	glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, -10));
+	glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
 	glm::mat4 r = glm::mat4(1.f);
-	float size = .5f;
+	float size = .05f;
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-	chasis->updateObject(t * r * s);
-	chasis->drawObject();
-	chrome->updateObject(t * r * s);
-	chrome->drawObject();
-	rubber->updateObject(t * r * s);
-	rubber->drawObject();
-	glass->updateObject(t * r * s);
-	glass->drawObject();
-	matte->updateObject(t * r * s);
-	matte->drawObject();
+	cubeObj->updateObject(t * r * s);
+	cubeObj->drawObject();
 	
-	t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -20));
-	r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
-	chasis->updateObject(t * r * s);
-	chasis->drawObject();
-	chrome->updateObject(t * r * s);
-	chrome->drawObject();
-	rubber->updateObject(t * r * s);
-	rubber->drawObject();
-	glass->updateObject(t * r * s);
-	glass->drawObject();
+	//t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -20));
+	//r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
+	//cubeObj->updateObject(t * r * s);
+	//cubeObj->drawObject();
 
 
-	t = glm::translate(glm::mat4(), glm::vec3(10, 0, -20));
-	r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, -1, 0));
-	chasis->updateObject(t * r * s);
-	chasis->drawObject();
-	chrome->updateObject(t * r * s);
-	chrome->drawObject();
-	rubber->updateObject(t * r * s);
-	rubber->drawObject();
-	glass->updateObject(t * r * s);
-	glass->drawObject();
+	//t = glm::translate(glm::mat4(), glm::vec3(10, 0, -20));
+	//r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, -1, 0));
+	//cubeObj->updateObject(t * r * s);
+	//cubeObj->drawObject();
 
 
 	ImGui::Render();
@@ -633,13 +604,35 @@ void GUI() {
 		/////////////////////////////////////////////////////////
 		//ImGui::DragFloat4("Color", &Object::color[0], .1f, 0, 0, "%.3f", .1f);
 		//ImGui::DragFloat4("Light Pos", &Object::light[0], .1f, 0, 0, "%.3f", .1f);
-		ImGui::Checkbox("Global Light", &globalLight);
-		if (globalLight) {
-			ImGui::DragFloat3("Global Light Position", &lightPosition[0], .1f);
-			chasis->lightPosition = lightPosition;
-			chrome->lightPosition = lightPosition;
-			rubber->lightPosition = lightPosition;
-			glass->lightPosition = lightPosition;
+
+		int previousLightSize = lights.size();
+		int newLightsSize = lights.size();
+		ImGui::SliderInt("Lights", &newLightsSize, 0, MAX_LIGHTS);
+		for (size_t i = 0; i < lights.size(); i++)
+		{
+			std::string name = std::to_string(i);
+			name += " position";
+			ImGui::DragFloat3(name.c_str(), &lights.at(i).position[0], .01f);
+			name = std::to_string(i);
+			name += " color";
+			ImGui::DragFloat3(name.c_str(), &lights.at(i).color[0], .01f);
+			name = std::to_string(i);
+			name += " strength";
+			ImGui::DragFloat(name.c_str(), &lights.at(i).strength, .01f);
+		}
+		if (previousLightSize != newLightsSize) {
+			if (previousLightSize > newLightsSize) {
+				while (previousLightSize != newLightsSize) {
+					lights.pop_back();
+					newLightsSize++;
+				}
+			}
+			else {
+				while (previousLightSize != newLightsSize) {
+					lights.push_back(Light());
+					newLightsSize--;
+				}
+			}
 		}
 
 		ImGui::SliderFloat("distance: ", &RV::panv[2], RV::initial_panv[2], RV::MAX_panv[2]);
@@ -658,11 +651,7 @@ void GUI() {
 
 	ImGui::End();
 
-		chasis->drawGUI();
-		chrome->drawGUI();
-		rubber->drawGUI();
-		glass->drawGUI();
-		matte->drawGUI();
+		cubeObj->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {
