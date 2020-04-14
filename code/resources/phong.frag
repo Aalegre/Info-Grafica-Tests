@@ -3,7 +3,6 @@
 in vec4			frag_Normal;
 in vec4			frag_Pos;
 in vec2			frag_UVs;
-in vec4			frag_BiTangent;
 in mat3			frag_TBN;
 
 out vec4		out_Color;
@@ -15,6 +14,7 @@ uniform vec4	_color_diffuse;
 uniform vec4	_color_ambient;
 uniform vec4	_color_specular;
 uniform float	_specular_strength;
+uniform float	_normal_strength;
 
 
 uniform sampler2D _albedo;
@@ -57,8 +57,8 @@ void main(){
 
 	vec4 diffuse;
 	vec4 specular;
-	vec4 fixed_normal_tex = (texture(_normal, frag_UVs ) * 2.0 - 1.0);
-	vec4 frag_Normal_n = normalize(frag_Normal);
+	vec3 fixed_normal_tex = (texture(_normal, frag_UVs ).rgb * 0.5 + 0.5);
+	vec4 frag_Normal_n = vec4(normalize(frag_TBN * fixed_normal_tex), 0) * _normal_strength;
 	vec4 specular_tex = texture(_specular, frag_UVs);
 	vec4 specular_tex_color = specular_tex;
 	specular_tex_color.w = 0;

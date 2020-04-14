@@ -367,7 +367,7 @@ struct Texture {
 
 struct Light {
 	glm::vec3 color = { 1,1,1 };
-	glm::vec3 position = { 0,5,2 };
+	glm::vec3 position = { 0,2,-3 };
 	glm::float32 strength = 10;
 };
 
@@ -383,10 +383,9 @@ class Object {
 	std::vector <glm::vec2> uvs;
 	std::vector <glm::vec3> normals;
 	std::vector <glm::vec3> tangents;
-	std::vector <glm::vec3> bitangents;
 
 	GLuint vao;
-	GLuint vbo[5];
+	GLuint vbo[4];
 	GLuint shaders[2];
 	GLuint program;
 
@@ -397,19 +396,19 @@ public:
 	glm::vec3 colorDiffuse = { 1,1,1 };
 	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::float32 specularStrength = 1;
+	glm::float32 normalStrength = 1;
 
 	Texture albedo;
 	Texture normal;
 	Texture specular;
 
-private:
 	void setupObject() {
 		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
 		computeTB();
 
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
-		glGenBuffers(5, vbo);
+		glGenBuffers(4, vbo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
@@ -427,14 +426,9 @@ private:
 		glEnableVertexAttribArray(2);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
-		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec3), &tangents[0], GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, tangents.size() * sizeof(glm::vec3), &tangents[0], GL_STATIC_DRAW);
 		glVertexAttribPointer((GLuint)3, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(3);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
-		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec3), &bitangents[0], GL_STATIC_DRAW);
-		glVertexAttribPointer((GLuint)4, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(4);
 
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -446,13 +440,8 @@ private:
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
 
-		albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
-		albedo.nrChannels = 3;
 		albedo.Load();
-		normal.path = "resources/textures/Metal_Normal.png";
-		normal.nrChannels = 3;
 		normal.Load();
-		specular.path = "resources/textures/Metal_SpecularSmoothness.png";
 		specular.Load();
 
 
@@ -460,12 +449,12 @@ private:
 		glBindAttribLocation(program, 1, "in_Normal");
 		glBindAttribLocation(program, 2, "in_UVs");
 		glBindAttribLocation(program, 3, "in_Tangent");
-		glBindAttribLocation(program, 4, "in_BiTangent");
 		linkProgram(program);
 
 		objMat = glm::mat4(1.f);
 
 	}
+private:
 	void computeTB() {
 		for (int i = 0; i < vertices.size(); i += 3) {
 
@@ -487,25 +476,22 @@ private:
 			glm::vec2 deltaUV1 = uv1 - uv0;
 			glm::vec2 deltaUV2 = uv2 - uv0;
 
-			float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-			glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
-			glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
+			float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+			glm::vec3 tangent/* = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r*/;
+			tangent.x = r * (deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x);
+			tangent.y = r * (deltaUV2.y * deltaPos1.y - deltaUV1.y * deltaPos2.y);
+			tangent.z = r * (deltaUV2.y * deltaPos1.z - deltaUV1.y * deltaPos2.z);
+			tangent = glm::normalize(tangent);
 
 			tangents.push_back(tangent);
 			tangents.push_back(tangent);
 			tangents.push_back(tangent);
-
-			// Same thing for binormals
-			bitangents.push_back(bitangent);
-			bitangents.push_back(bitangent);
-			bitangents.push_back(bitangent);
 
 		}
 	}
 
 public:
 	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/cube.3dobj") : name(name_), path(path_) {
-		setupObject();
 	}
 	~Object() {
 		cleanupObject();
@@ -527,6 +513,7 @@ public:
 		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
 		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
 		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
+		glUniform1f(glGetUniformLocation(program, "_normal_strength"), normalStrength);
 
 		glUniform1i(glGetUniformLocation(program, "_albedo"), 0);
 		glUniform1i(glGetUniformLocation(program, "_normal"), 1);
@@ -580,6 +567,7 @@ public:
 		ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
 		ImGui::ColorEdit3("Specular", &colorSpecular[0]);
 		ImGui::SliderFloat("Specular Strength", &specularStrength, 0, 2);
+		ImGui::SliderFloat("Normal Strength", &normalStrength, 0.001f, 1.05f, "%.3f", .1f);
 		ImGui::End();
 	}
 
@@ -627,7 +615,22 @@ void GLinit(int width, int height) {
 	// ...
 	// ...
 	/////////////////////////////////////////////////////////
+
 	cubeObj = new Object();
+	cubeObj->albedo.path = "resources/textures/MetalPaint_AlbedoTransparency.png";
+	cubeObj->albedo.nrChannels = 3;
+	cubeObj->normal.path = "resources/textures/MetalPaint_Normal.png";
+	cubeObj->normal.nrChannels = 3;
+	cubeObj->specular.path = "resources/textures/MetalPaint_SpecularSmoothness.png";
+	cubeObj->setupObject();
+
+	//cubeObj2 = new Object("cube2");
+	//cubeObj2->albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
+	//cubeObj2->albedo.nrChannels = 3;
+	//cubeObj2->normal.path = "resources/textures/Metal_Normal.png";
+	//cubeObj2->normal.nrChannels = 3;
+	//cubeObj2->specular.path = "resources/textures/Metal_SpecularSmoothness.png";
+	//cubeObj2->setupObject();
 
 	lights.push_back(Light());
 
@@ -638,7 +641,11 @@ void GLinit(int width, int height) {
 void GLcleanup() {
 	Axis::cleanupAxis();
 	delete cubeObj;
+	//delete cubeObj2;
 }
+
+float rotation = 1.f;
+bool enablerotation = true;
 
 void GLrender(float dt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -695,6 +702,14 @@ void GLrender(float dt) {
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 	cubeObj->updateObject(t * r * s);
 	cubeObj->drawObject();
+
+
+	//t = glm::translate(glm::mat4(), glm::vec3(-1.7f, 0, 0));
+	//r = glm::rotate(glm::mat4(), rotation, glm::vec3(0, 1, 0));
+	//size = 1.f;
+	//s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
+	//cubeObj2->updateObject(t * r * s);
+	//cubeObj2->drawObject();
 	
 	//t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -20));
 	//r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
@@ -707,9 +722,12 @@ void GLrender(float dt) {
 	//cubeObj->updateObject(t * r * s);
 	//cubeObj->drawObject();
 
+	if (enablerotation)
+		rotation += dt;
 
 	ImGui::Render();
 }
+
 
 void GUI() {
 	bool show = true;
@@ -769,6 +787,8 @@ void GUI() {
 		}
 
 		ImGui::NewLine();
+		ImGui::Checkbox("Toogle Rotation", &enablerotation);
+		ImGui::NewLine();
 		ImGui::SliderFloat("distance: ", &RV::panv[2], RV::initial_panv[2], RV::MAX_panv[2]);
 		ImGui::SliderFloat("Dolly Velocity: ", &RV::autoDollyVel, 0.001f, 20.f);
 
@@ -786,6 +806,7 @@ void GUI() {
 	ImGui::End();
 
 		cubeObj->drawGUI();
+		//cubeObj2->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {
