@@ -347,6 +347,14 @@ struct Texture {
 		if (data)
 		{
 			switch (nrChannels) {
+			case 1:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+				//glGenerateMipmap(GL_TEXTURE_2D);
+				break;
+			case 2:
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, width, height, 0, GL_RG, GL_UNSIGNED_BYTE, data);
+				//glGenerateMipmap(GL_TEXTURE_2D);
+				break;
 			case 3:
 				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 				//glGenerateMipmap(GL_TEXTURE_2D);
@@ -477,7 +485,7 @@ private:
 			glm::vec2 deltaUV2 = uv2 - uv0;
 
 			float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-			glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * -r;
+			glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
 
 			tangents.push_back(tangent);
 			tangents.push_back(tangent);
@@ -523,6 +531,7 @@ public:
 
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, specular.texture);
+
 		for (size_t i = 0; i < MAX_LIGHTS; i++)
 		{
 			std::string name = "lights[";
@@ -576,9 +585,127 @@ public:
 		glDeleteShader(shaders[1]);
 	}
 };
+class ObjectExplode {
+	//const char* path = "cube.3dobj";
+	const std::string path;
+	const std::string name;
+
+	std::vector <glm::vec3> vertices;
+	std::vector <glm::vec2> uvs;
+	std::vector <glm::vec3> normals;
+
+	GLuint vao;
+	GLuint vbo[3];
+	GLuint shaders[3];
+	GLuint program;
+
+	glm::mat4 objMat;
+
+public:
+	glm::vec3 colorAmbient = { 1.f,0.5f,0.5f };
+	glm::float32 explode = 0;
+
+	void setupObject() {
+		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
+
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		glGenBuffers(4, vbo);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+		glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(1);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
+		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)2, 2, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(2);
+
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		shaders[0] = compileShader(FileLoader::LoadString("resources/phong.vert").c_str(), GL_VERTEX_SHADER, "objectVertexShader");
+		shaders[1] = compileShader(FileLoader::LoadString("resources/explode.geom").c_str(), GL_GEOMETRY_SHADER, "objectGeometryShader");
+		shaders[2] = compileShader(FileLoader::LoadString("resources/phong.frag").c_str(), GL_FRAGMENT_SHADER, "objectFragmentShader");
+
+		program = glCreateProgram();
+		glAttachShader(program, shaders[0]);
+		glAttachShader(program, shaders[1]);
+		glAttachShader(program, shaders[2]);
+
+		glBindAttribLocation(program, 0, "in_Position");
+		glBindAttribLocation(program, 1, "in_Normal");
+		glBindAttribLocation(program, 2, "in_UVs");
+		glBindAttribLocation(program, 3, "in_Tangent");
+		linkProgram(program);
+
+		objMat = glm::mat4(1.f);
+
+	}
+
+	ObjectExplode(const std::string & name_ = "explosion", const std::string & path_ = "resources/dragon.3dobj") : name(name_), path(path_) {
+	}
+	~ObjectExplode() {
+		cleanupObject();
+	}
+
+
+	void updateObject(glm::mat4 matrix) {
+		objMat = matrix;
+	}
+
+	void drawObject() {
+		glBindVertexArray(vao);
+		glUseProgram(program);
+
+		glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
+		glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
+		glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
+		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
+		glUniform1f(glGetUniformLocation(program, "_time"), explode);
+
+		for (size_t i = 0; i < MAX_LIGHTS; i++)
+		{
+			std::string name = "lights[";
+			name += std::to_string(i);
+			name += "].enabled";
+			glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
+		}
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+		glUseProgram(0);
+		glBindVertexArray(0);
+	}
+
+	void drawGUI() {
+		ImGui::Begin(name.c_str());
+
+		ImGui::Text("Material:");
+		ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
+		ImGui::SliderFloat("Explode", &explode, 0.f, 200.f, "%.3f", 5.f);
+		ImGui::End();
+	}
+
+	void cleanupObject() {
+		glDeleteBuffers(3, vbo);
+		glDeleteVertexArrays(1, &vao);
+
+		glDeleteProgram(program);
+		glDeleteShader(shaders[0]);
+		glDeleteShader(shaders[1]);
+		glDeleteShader(shaders[2]);
+	}
+};
 
 
 Object* cubeObj;
+ObjectExplode* dragon;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -603,7 +730,7 @@ void GLinit(int width, int height) {
 
 	// Setup shaders & geometry
 	Axis::setupAxis();
-	Cube::setupCube();
+	//Cube::setupCube();
 
 	/////////////////////////////////////////////////////TODO
 	// Do your init code here
@@ -613,12 +740,12 @@ void GLinit(int width, int height) {
 	/////////////////////////////////////////////////////////
 
 	cubeObj = new Object();
-	cubeObj->albedo.path = "resources/textures/MetalPaint_AlbedoTransparency.png";
-	cubeObj->albedo.nrChannels = 3;
-	cubeObj->normal.path = "resources/textures/MetalPaint_Normal.png";
-	cubeObj->normal.nrChannels = 3;
-	cubeObj->specular.path = "resources/textures/MetalPaint_SpecularSmoothness.png";
+	cubeObj->albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
+	cubeObj->normal.path = "resources/textures/Metal_Normal.png";
+	cubeObj->specular.path = "resources/textures/Metal_SpecularSmoothness.png";
 	cubeObj->setupObject();
+	dragon = new ObjectExplode();
+	dragon->setupObject();
 
 	//cubeObj2 = new Object("cube2");
 	//cubeObj2->albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
@@ -637,7 +764,7 @@ void GLinit(int width, int height) {
 void GLcleanup() {
 	Axis::cleanupAxis();
 	delete cubeObj;
-	//delete cubeObj2;
+	delete dragon;
 }
 
 float rotation = 1.f;
@@ -691,13 +818,22 @@ void GLrender(float dt) {
 	{
 		Axis::drawAxis(lights.at(i).position);
 	}
-
-	glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
-	glm::mat4 r = glm::mat4(1.f);
-	float size = 1.f;
-	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-	cubeObj->updateObject(t * r * s);
-	cubeObj->drawObject();
+	{
+		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
+		glm::mat4 r = glm::mat4(1.f);
+		float size = 1.f;
+		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
+		cubeObj->updateObject(t * r * s);
+		cubeObj->drawObject();
+	}
+	{
+		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, -10));
+		glm::mat4 r = glm::mat4(1.f);
+		float size = .1f;
+		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
+		dragon->updateObject(t * r * s);
+		dragon->drawObject();
+	}
 
 
 	//t = glm::translate(glm::mat4(), glm::vec3(-1.7f, 0, 0));
@@ -802,7 +938,7 @@ void GUI() {
 	ImGui::End();
 
 		cubeObj->drawGUI();
-		//cubeObj2->drawGUI();
+		dragon->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {

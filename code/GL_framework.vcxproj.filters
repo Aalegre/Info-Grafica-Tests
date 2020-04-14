@@ -45,6 +45,9 @@
     <None Include="resources\cube_org.frag">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="resources\explode.geom">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\Textures\Metal_AlbedoTransparency.png">
