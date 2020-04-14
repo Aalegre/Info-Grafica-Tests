@@ -477,11 +477,7 @@ private:
 			glm::vec2 deltaUV2 = uv2 - uv0;
 
 			float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-			glm::vec3 tangent/* = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r*/;
-			tangent.x = r * (deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x);
-			tangent.y = r * (deltaUV2.y * deltaPos1.y - deltaUV1.y * deltaPos2.y);
-			tangent.z = r * (deltaUV2.y * deltaPos1.z - deltaUV1.y * deltaPos2.z);
-			tangent = glm::normalize(tangent);
+			glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * -r;
 
 			tangents.push_back(tangent);
 			tangents.push_back(tangent);
