@@ -422,8 +422,8 @@ private:
 		glEnableVertexAttribArray(1);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec3), &uvs[0], GL_STATIC_DRAW);
-		glVertexAttribPointer((GLuint)2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)2, 2, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(2);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[3]);
@@ -691,7 +691,7 @@ void GLrender(float dt) {
 
 	glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
 	glm::mat4 r = glm::mat4(1.f);
-	float size = .05f;
+	float size = 1.f;
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 	cubeObj->updateObject(t * r * s);
 	cubeObj->drawObject();
