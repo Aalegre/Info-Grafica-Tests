@@ -446,13 +446,13 @@ private:
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
 
-		albedo.path = "resources/MetalPaint_AlbedoTransparency.png";
+		albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
 		albedo.nrChannels = 3;
 		albedo.Load();
-		normal.path = "resources/MetalPaint_Normal.png";
+		normal.path = "resources/textures/Metal_Normal.png";
 		normal.nrChannels = 3;
 		normal.Load();
-		specular.path = "resources/MetalPaint_SpecularSmoothness.png";
+		specular.path = "resources/textures/Metal_SpecularSmoothness.png";
 		specular.Load();
 
 

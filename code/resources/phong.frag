@@ -60,10 +60,12 @@ void main(){
 	vec4 fixed_normal_tex = (texture(_normal, frag_UVs ) * 2.0 - 1.0);
 	vec4 frag_Normal_n = normalize(frag_Normal);
 	vec4 specular_tex = texture(_specular, frag_UVs);
+	vec4 specular_tex_color = specular_tex;
+	specular_tex_color.w = 0;
 	for	(int i = 0; i < LIGHT_POINT_MAX; i++){
 		if(lights[i].enabled){
 			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, texture(_albedo, frag_UVs) * _color_diffuse);
-			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, specular_tex * _color_specular, mv_Mat, specular_tex.a * _specular_strength);
+			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
 		}
 	}
 

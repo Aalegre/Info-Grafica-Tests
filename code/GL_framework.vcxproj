@@ -155,9 +155,13 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="resources\unlit.vert" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\MetalPaint_AlbedoTransparency.png" />
-    <Image Include="resources\MetalPaint_Normal.png" />
-    <Image Include="resources\MetalPaint_SpecularSmoothness.png" />
+    <Image Include="resources\Textures\MetalPaint_AlbedoTransparency.png" />
+    <Image Include="resources\Textures\MetalPaint_Normal.png" />
+    <Image Include="resources\Textures\MetalPaint_SpecularSmoothness.png" />
+    <Image Include="resources\Textures\Metal_AlbedoTransparency.png" />
+    <Image Include="resources\textures\Metal_Bump.png" />
+    <Image Include="resources\Textures\Metal_Normal.png" />
+    <Image Include="resources\Textures\Metal_SpecularSmoothness.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

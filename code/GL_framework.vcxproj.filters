@@ -47,13 +47,25 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\MetalPaint_AlbedoTransparency.png">
+    <Image Include="resources\Textures\Metal_AlbedoTransparency.png">
       <Filter>Textures</Filter>
     </Image>
-    <Image Include="resources\MetalPaint_Normal.png">
+    <Image Include="resources\Textures\Metal_Normal.png">
       <Filter>Textures</Filter>
     </Image>
-    <Image Include="resources\MetalPaint_SpecularSmoothness.png">
+    <Image Include="resources\Textures\Metal_SpecularSmoothness.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\Textures\MetalPaint_AlbedoTransparency.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\Textures\MetalPaint_Normal.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\Textures\MetalPaint_SpecularSmoothness.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Metal_Bump.png">
       <Filter>Textures</Filter>
     </Image>
   </ItemGroup>
