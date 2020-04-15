@@ -653,7 +653,7 @@ public:
 
 	}
 
-	ObjectExplode(const std::string & name_ = "explosion", const std::string & path_ = "resources/dragon.3dobj") : name(name_), path(path_) {
+	ObjectExplode(const std::string & name_ = "explosion", const std::string & path_ = "resources/Chasis.3dobj") : name(name_), path(path_) {
 	}
 	~ObjectExplode() {
 		cleanupObject();
@@ -804,7 +804,7 @@ public:
 
 
 Object* cubeObj;
-ObjectExplode* dragon;
+ObjectExplode* chasis;
 Billboard* billboard;
 
 void ResetPanV() {
@@ -844,8 +844,8 @@ void GLinit(int width, int height) {
 	cubeObj->normal.path = "resources/textures/Metal_Normal.png";
 	cubeObj->specular.path = "resources/textures/Metal_SpecularSmoothness.png";
 	cubeObj->setupObject();
-	dragon = new ObjectExplode();
-	dragon->setupObject();
+	chasis = new ObjectExplode();
+	chasis->setupObject();
 	billboard = new Billboard();
 	billboard->setupObject();
 
@@ -866,7 +866,7 @@ void GLinit(int width, int height) {
 void GLcleanup() {
 	Axis::cleanupAxis();
 	delete cubeObj;
-	delete dragon;
+	delete chasis;
 	delete billboard;
 }
 
@@ -930,15 +930,15 @@ void GLrender(float dt) {
 		cubeObj->drawObject();
 	}
 	{
-		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, -10));
+		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, -7.5));
 		glm::mat4 r = glm::mat4(1.f);
-		float size = .1f;
+		float size = .3f;
 		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-		dragon->updateObject(t * r * s);
-		dragon->drawObject();
+		chasis->updateObject(t * r * s);
+		chasis->drawObject();
 	}
 	{
-		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 50));
+		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
 		glm::mat4 r = glm::mat4(1.f);
 		float size = 1.f;
 		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
@@ -1049,7 +1049,7 @@ void GUI() {
 	ImGui::End();
 
 		cubeObj->drawGUI();
-		dragon->drawGUI();
+		chasis->drawGUI();
 		billboard->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
