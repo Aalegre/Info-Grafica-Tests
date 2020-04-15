@@ -111,6 +111,10 @@ GLuint compileShader(const char* shaderStr, GLenum shaderType, const char* name 
 	}
 	return shader;
 }
+
+GLuint compileShaderFromFile(const char* shaderPath, GLenum shaderType, const char* name = "") {
+	return compileShader(FileLoader::LoadString(shaderPath).c_str(), shaderType, name);
+}
 void linkProgram(GLuint program) {
 	glLinkProgram(program);
 	GLint res;
@@ -441,8 +445,8 @@ public:
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		shaders[0] = compileShader(FileLoader::LoadString("resources/phong.vert").c_str(), GL_VERTEX_SHADER, "objectVertexShader");
-		shaders[1] = compileShader(FileLoader::LoadString("resources/phong.frag").c_str(), GL_FRAGMENT_SHADER, "objectFragmentShader");
+		shaders[0] = compileShaderFromFile("resources/phong.vert", GL_VERTEX_SHADER, "objectVertexShader");
+		shaders[1] = compileShaderFromFile("resources/phong.frag", GL_FRAGMENT_SHADER, "objectFragmentShader");
 
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
@@ -630,9 +634,9 @@ public:
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		shaders[0] = compileShader(FileLoader::LoadString("resources/phong.vert").c_str(), GL_VERTEX_SHADER, "objectVertexShader");
-		shaders[1] = compileShader(FileLoader::LoadString("resources/explode.geom").c_str(), GL_GEOMETRY_SHADER, "objectGeometryShader");
-		shaders[2] = compileShader(FileLoader::LoadString("resources/phong.frag").c_str(), GL_FRAGMENT_SHADER, "objectFragmentShader");
+		shaders[0] = compileShaderFromFile("resources/phong.vert", GL_VERTEX_SHADER, "objectVertexShader");
+		shaders[1] = compileShaderFromFile("resources/explode.geom", GL_GEOMETRY_SHADER, "objectGeometryShader");
+		shaders[2] = compileShaderFromFile("resources/phong.frag", GL_FRAGMENT_SHADER, "objectFragmentShader");
 
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
@@ -730,9 +734,9 @@ public:
 		glBindVertexArray(vao);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		shaders[0] = compileShader(FileLoader::LoadString("resources/phong.vert").c_str(), GL_VERTEX_SHADER, "billboardVertexShader");
-		shaders[1] = compileShader(FileLoader::LoadString("resources/billboard.geom").c_str(), GL_GEOMETRY_SHADER, "billboardGeometryShader");
-		shaders[2] = compileShader(FileLoader::LoadString("resources/phong.frag").c_str(), GL_FRAGMENT_SHADER, "billboardFragmentShader");
+		shaders[0] = compileShaderFromFile("resources/phong.vert", GL_VERTEX_SHADER, "billboardVertexShader");
+		shaders[1] = compileShaderFromFile("resources/billboard.geom", GL_GEOMETRY_SHADER, "billboardGeometryShader");
+		shaders[2] = compileShaderFromFile("resources/phong.frag", GL_FRAGMENT_SHADER, "billboardFragmentShader");
 
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
@@ -939,7 +943,7 @@ void GLrender(float dt) {
 		float size = 1.f;
 		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 		billboard->updateObject(t * r * s);
-		billboard->drawObject();
+		//billboard->drawObject();
 	}
 
 
