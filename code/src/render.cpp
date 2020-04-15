@@ -702,10 +702,106 @@ public:
 		glDeleteShader(shaders[2]);
 	}
 };
+class Billboard {
+	const std::string name;
+
+	glm::vec3 position = { 0,0,0 };
+
+	GLuint vao;
+	GLuint vbo[1];
+	GLuint shaders[3];
+	GLuint program;
+
+	glm::mat4 objMat;
+
+public:
+	glm::vec3 colorAmbient = { 1.f,0.5f,0.5f };
+
+	void setupObject() {
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		glGenBuffers(1, vbo);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), &position, GL_STATIC_DRAW);
+		glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glEnableVertexAttribArray(0);
+
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		shaders[0] = compileShader(FileLoader::LoadString("resources/phong.vert").c_str(), GL_VERTEX_SHADER, "billboardVertexShader");
+		shaders[1] = compileShader(FileLoader::LoadString("resources/billboard.geom").c_str(), GL_GEOMETRY_SHADER, "billboardGeometryShader");
+		shaders[2] = compileShader(FileLoader::LoadString("resources/phong.frag").c_str(), GL_FRAGMENT_SHADER, "billboardFragmentShader");
+
+		program = glCreateProgram();
+		glAttachShader(program, shaders[0]);
+		glAttachShader(program, shaders[1]);
+		glAttachShader(program, shaders[2]);
+
+		glBindAttribLocation(program, 0, "in_Position");
+		linkProgram(program);
+
+		objMat = glm::mat4(1.f);
+
+	}
+
+	Billboard(const std::string & name_ = "billboard") : name(name_) {
+	}
+	~Billboard() {
+		cleanupObject();
+	}
+
+
+	void updateObject(glm::mat4 matrix) {
+		objMat = matrix;
+	}
+
+	void drawObject() {
+		glBindVertexArray(vao);
+		glUseProgram(program);
+
+		//glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
+		//glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
+		//glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
+		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
+
+		for (size_t i = 0; i < MAX_LIGHTS; i++)
+		{
+			std::string name = "lights[";
+			name += std::to_string(i);
+			name += "].enabled";
+			glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
+		}
+		glDrawArrays(GL_POINTS, 0, 1);
+
+		glUseProgram(0);
+		glBindVertexArray(0);
+	}
+
+	void drawGUI() {
+		ImGui::Begin(name.c_str());
+
+		ImGui::Text("Material:");
+		ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
+		ImGui::End();
+	}
+
+	void cleanupObject() {
+		glDeleteBuffers(1, vbo);
+		glDeleteVertexArrays(1, &vao);
+
+		glDeleteProgram(program);
+		glDeleteShader(shaders[0]);
+		glDeleteShader(shaders[1]);
+		glDeleteShader(shaders[2]);
+	}
+};
 
 
 Object* cubeObj;
 ObjectExplode* dragon;
+Billboard* billboard;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -746,6 +842,8 @@ void GLinit(int width, int height) {
 	cubeObj->setupObject();
 	dragon = new ObjectExplode();
 	dragon->setupObject();
+	billboard = new Billboard();
+	billboard->setupObject();
 
 	//cubeObj2 = new Object("cube2");
 	//cubeObj2->albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
@@ -765,6 +863,7 @@ void GLcleanup() {
 	Axis::cleanupAxis();
 	delete cubeObj;
 	delete dragon;
+	delete billboard;
 }
 
 float rotation = 1.f;
@@ -833,6 +932,14 @@ void GLrender(float dt) {
 		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 		dragon->updateObject(t * r * s);
 		dragon->drawObject();
+	}
+	{
+		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 50));
+		glm::mat4 r = glm::mat4(1.f);
+		float size = 1.f;
+		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
+		billboard->updateObject(t * r * s);
+		billboard->drawObject();
 	}
 
 
@@ -939,6 +1046,7 @@ void GUI() {
 
 		cubeObj->drawGUI();
 		dragon->drawGUI();
+		billboard->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {

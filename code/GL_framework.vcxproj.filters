@@ -48,6 +48,9 @@
     <None Include="resources\explode.geom">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="billboard.geom">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\Textures\Metal_AlbedoTransparency.png">

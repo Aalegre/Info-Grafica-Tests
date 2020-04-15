@@ -145,6 +145,7 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="billboard.geom" />
     <None Include="resources\axis.frag" />
     <None Include="resources\axis.vert" />
     <None Include="resources\cube_org.frag" />
