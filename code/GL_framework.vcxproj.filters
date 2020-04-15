@@ -9,42 +9,16 @@
     <ClCompile Include="src\render.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Shaders">
-      <UniqueIdentifier>{e2c35790-aa46-40e8-a49f-cc823332c01e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Textures">
       <UniqueIdentifier>{899d1b57-e4e5-46bb-a822-cea7e308fedf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{a747762d-de27-44b9-90cc-76cf05162c6b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileLoader.h" />
     <ClInclude Include="stb_image.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="resources\unlit.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\phong.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\axis.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\axis.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\phong.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\unlit.frag">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\cube_org.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="resources\cube_org.frag">
-      <Filter>Shaders</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\Textures\Metal_AlbedoTransparency.png">
@@ -68,5 +42,40 @@
     <Image Include="resources\textures\Metal_Bump.png">
       <Filter>Textures</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\axis.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\axis.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\cube_org.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\cube_org.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\phong.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\phong.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\unlit.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\unlit.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\billboard.geom">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\billboard.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\billboard.frag">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

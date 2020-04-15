@@ -145,16 +145,6 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="resources\axis.frag" />
-    <None Include="resources\axis.vert" />
-    <None Include="resources\cube_org.frag" />
-    <None Include="resources\cube_org.vert" />
-    <None Include="resources\phong.frag" />
-    <None Include="resources\phong.vert" />
-    <None Include="resources\unlit.frag" />
-    <None Include="resources\unlit.vert" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="resources\Textures\MetalPaint_AlbedoTransparency.png" />
     <Image Include="resources\Textures\MetalPaint_Normal.png" />
     <Image Include="resources\Textures\MetalPaint_SpecularSmoothness.png" />
@@ -162,6 +152,19 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <Image Include="resources\textures\Metal_Bump.png" />
     <Image Include="resources\Textures\Metal_Normal.png" />
     <Image Include="resources\Textures\Metal_SpecularSmoothness.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="resources\shaders\axis.frag" />
+    <None Include="resources\shaders\axis.vert" />
+    <None Include="resources\shaders\billboard.frag" />
+    <None Include="resources\shaders\billboard.geom" />
+    <None Include="resources\shaders\billboard.vert" />
+    <None Include="resources\shaders\cube_org.frag" />
+    <None Include="resources\shaders\cube_org.vert" />
+    <None Include="resources\shaders\phong.frag" />
+    <None Include="resources\shaders\phong.vert" />
+    <None Include="resources\shaders\unlit.frag" />
+    <None Include="resources\shaders\unlit.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

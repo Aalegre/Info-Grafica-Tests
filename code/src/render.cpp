@@ -111,6 +111,10 @@ GLuint compileShader(const char* shaderStr, GLenum shaderType, const char* name 
 	}
 	return shader;
 }
+
+GLuint compileShaderFromFile(const char* shaderPath, GLenum shaderType, const char* name = ""){
+	return compileShader(FileLoader::LoadString(shaderPath).c_str(), shaderType, name);
+}
 void linkProgram(GLuint program) {
 	glLinkProgram(program);
 	GLint res;
@@ -175,8 +179,8 @@ namespace Axis {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-		AxisShader[0] = compileShader(FileLoader::LoadString("resources/axis.vert").c_str(), GL_VERTEX_SHADER, "AxisVert");
-		AxisShader[1] = compileShader(FileLoader::LoadString("resources/axis.frag").c_str(), GL_FRAGMENT_SHADER, "AxisFrag");
+		AxisShader[0] = compileShaderFromFile("resources/shaders/axis.vert", GL_VERTEX_SHADER, "AxisVert");
+		AxisShader[1] = compileShaderFromFile("resources/shaders/axis.frag", GL_FRAGMENT_SHADER, "AxisFrag");
 
 		AxisProgram = glCreateProgram();
 		glAttachShader(AxisProgram, AxisShader[0]);
@@ -225,6 +229,7 @@ namespace Cube {
 						   //| /       | /
 						   //|/        |/
 						   //1---------2
+
 	glm::vec3 verts[] = {
 		glm::vec3(-halfW, -halfW, -halfW),
 		glm::vec3(-halfW, -halfW,  halfW),
@@ -268,6 +273,7 @@ namespace Cube {
 		16, 17, 18, 19, UCHAR_MAX,
 		20, 21, 22, 23, UCHAR_MAX
 	};
+
 	void setupCube() {
 		glGenVertexArrays(1, &cubeVao);
 		glBindVertexArray(cubeVao);
@@ -291,8 +297,8 @@ namespace Cube {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-		cubeShaders[0] = compileShader(FileLoader::LoadString("resources/cube_org.vert").c_str(), GL_VERTEX_SHADER, "cubeVert");
-		cubeShaders[1] = compileShader(FileLoader::LoadString("resources/cube_org.frag").c_str(), GL_FRAGMENT_SHADER, "cubeFrag");
+		cubeShaders[0] = compileShaderFromFile("resources/shaders/cube_org.vert", GL_VERTEX_SHADER, "cubeVert");
+		cubeShaders[1] = compileShaderFromFile("resources/shaders/cube_org.frag", GL_FRAGMENT_SHADER, "cubeFrag");
 
 		cubeProgram = glCreateProgram();
 		glAttachShader(cubeProgram, cubeShaders[0]);
@@ -328,6 +334,146 @@ namespace Cube {
 		glDisable(GL_PRIMITIVE_RESTART);
 	}
 }
+
+////////////////////////////////////////////////// BILLBORD
+namespace Billboard {
+	float width, height;
+	glm::mat4 BillboardMat;
+
+	GLuint vao;
+	GLuint vbo;
+	GLuint shaders[3];
+	GLuint program;
+	GLuint textureID;
+
+	float BillboardVert[] = {
+		0.f, 1.f, 0.f
+	};
+	void setup() {
+
+		shaders[0] = compileShaderFromFile("resources/shaders/billboard.vert", GL_VERTEX_SHADER, "billboardVert");
+		shaders[1] = compileShaderFromFile("resources/shaders/billboard.geom", GL_GEOMETRY_SHADER, "billboardGeom");
+		shaders[2] = compileShaderFromFile("resources/shaders/billboard.frag", GL_FRAGMENT_SHADER, "billboardFrag");
+		
+		program = glCreateProgram();
+		glAttachShader(program, shaders[0]);
+		glAttachShader(program, shaders[1]);
+		glAttachShader(program, shaders[2]);
+		linkProgram(program);
+
+		glDeleteShader(shaders[0]);
+		glDeleteShader(shaders[1]);
+		glDeleteShader(shaders[2]);
+
+		int width, height, channels;
+
+		stbi_set_flip_vertically_on_load(true);
+		unsigned char* data = stbi_load(
+			"resources/textures/700x420_arbol-mundo.jpg",
+			&width,
+			&height,
+			&channels,
+			0
+		);
+
+		if (data == NULL)
+		{
+			fprintf(stderr, "cannot load texture");
+		}
+		else
+		{
+			//load image to CPU
+			glGenTextures(1, &textureID); //create the handle of the texture
+			glBindTexture(GL_TEXTURE_2D, textureID); //Bind it
+
+			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			// USE MIPMAPS
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+			// USE MIPMAPS chess
+			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+			//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			glTexImage2D(
+				GL_TEXTURE_2D, //Target
+				0, // Level of midmap (0 = base)
+				GL_RGB, //how to store the texture (GPU)
+				width,
+				height,
+				0,	//Legacy stuff
+				GL_RGB,	// format, datatype, and actual data
+				GL_UNSIGNED_BYTE,
+				data //where the data is stored
+			);
+			// GENERATE MIPMAPS
+			glGenerateMipmap(GL_TEXTURE_2D);
+		}
+
+		stbi_image_free(data);
+
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo);
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof(BillboardVert), BillboardVert, GL_STATIC_DRAW);
+
+		glVertexAttribPointer(
+			0, // Set the location for this attribute to 0 (same that we specified in the shader)
+			3, // Size of the vertex attribute. In this case, 3 coordinates x, y, z
+			GL_FLOAT,
+			GL_FALSE, // Don't normalize the data.
+			3 * sizeof(float),  // stride (space between consecutive vertex attributes)
+			(void*)0 // offset of where the position data begins in the buffer (in this case 0)
+		);
+
+		// Once the attribute is specified, we enable it. The parameter is the location of the attribute
+		glEnableVertexAttribArray(0);
+
+
+		// Not necessary, but recomendable as it ensures that we will not use the VAO accidentally.
+		glBindVertexArray(0);
+	}
+
+	void cleanup() {
+		// Deallocate the resources
+		glDeleteProgram(program);
+		glDeleteVertexArrays(1, &vao);
+		glDeleteBuffers(1, &vbo);
+	}
+
+	void Update(glm::mat4 matrix) {
+		BillboardMat = matrix;
+	}
+
+	void render() {
+		glUseProgram(program);
+		glBindVertexArray(vao);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); // Fill the triangle
+		//glDrawArrays(GL_LINE_LOOP, 0, 3); // Don't fill the triangle
+	}
+	/*
+	void draw() {
+		glUseProgram(program);
+		glBindVertexArray(vao);
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); // Fill the triangle
+
+		GLfloat param = sin(GL_CURRENT_TIME_NV);
+		glUniform1f(glGetUniformLocation(program, "param"), param);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+	}*/
+
+};
 
 /////////////////////////////////////////////////
 
@@ -439,8 +585,8 @@ private:
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-		shaders[0] = compileShader(FileLoader::LoadString("resources/phong.vert").c_str(), GL_VERTEX_SHADER, "objectVertexShader");
-		shaders[1] = compileShader(FileLoader::LoadString("resources/phong.frag").c_str(), GL_FRAGMENT_SHADER, "objectFragmentShader");
+		shaders[0] = compileShaderFromFile("resources/shaders/phong.vert", GL_VERTEX_SHADER, "objectVertexShader");
+		shaders[1] = compileShaderFromFile("resources/shaders/phong.frag", GL_FRAGMENT_SHADER, "objectFragmentShader");
 
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
@@ -593,8 +739,10 @@ public:
 	}
 };
 
-
 Object* cubeObj;
+
+
+
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -621,12 +769,8 @@ void GLinit(int width, int height) {
 	Axis::setupAxis();
 	Cube::setupCube();
 
-	/////////////////////////////////////////////////////TODO
-	// Do your init code here
-	// ...
-	// ...
-	// ...
-	/////////////////////////////////////////////////////////
+	Billboard::setup();
+
 	cubeObj = new Object();
 
 	lights.push_back(Light());
@@ -695,7 +839,10 @@ void GLrender(float dt) {
 	glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 	cubeObj->updateObject(t * r * s);
 	cubeObj->drawObject();
-	
+	t = glm::translate(glm::mat4(), glm::vec3(0, 10, 0));
+	Billboard::Update(t * r * s);
+	Billboard::render();
+
 	//t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -20));
 	//r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
 	//cubeObj->updateObject(t * r * s);
