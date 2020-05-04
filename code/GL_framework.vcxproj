@@ -153,6 +153,7 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="resources\explode.geom" />
     <None Include="resources\phong.frag" />
     <None Include="resources\phong.vert" />
+    <None Include="resources\toon.frag" />
     <None Include="resources\unlit.frag" />
     <None Include="resources\unlit.vert" />
   </ItemGroup>

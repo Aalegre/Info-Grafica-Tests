@@ -446,7 +446,7 @@ public:
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		shaders[0] = compileShaderFromFile("resources/phong.vert", GL_VERTEX_SHADER, "objectVertexShader");
-		shaders[1] = compileShaderFromFile("resources/phong.frag", GL_FRAGMENT_SHADER, "objectFragmentShader");
+		shaders[1] = compileShaderFromFile("resources/toon.frag", GL_FRAGMENT_SHADER, "objectFragmentShader");
 
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
@@ -499,7 +499,7 @@ private:
 	}
 
 public:
-	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/cube.3dobj") : name(name_), path(path_) {
+	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/sphere.obj") : name(name_), path(path_) {
 	}
 	~Object() {
 		cleanupObject();
@@ -924,7 +924,7 @@ void GLrender(float dt) {
 	{
 		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
 		glm::mat4 r = glm::mat4(1.f);
-		float size = 1.f;
+		float size = 0.025f;
 		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 		cubeObj->updateObject(t * r * s);
 		cubeObj->drawObject();
@@ -935,7 +935,7 @@ void GLrender(float dt) {
 		float size = .3f;
 		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
 		chasis->updateObject(t * r * s);
-		chasis->drawObject();
+		//chasis->drawObject();
 	}
 	{
 		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
@@ -1001,7 +1001,7 @@ void GUI() {
 			ImGui::DragFloat3(name.c_str(), &lights.at(i).position[0], .01f);
 			name = std::to_string(i);
 			name += " color";
-			ImGui::DragFloat3(name.c_str(), &lights.at(i).color[0], .01f);
+			ImGui::ColorEdit3(name.c_str(), &lights.at(i).color[0], .01f);
 			name = std::to_string(i);
 			name += " strength";
 			ImGui::DragFloat(name.c_str(), &lights.at(i).strength, .01f);
