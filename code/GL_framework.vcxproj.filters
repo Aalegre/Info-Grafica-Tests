@@ -15,9 +15,11 @@
     <Filter Include="Textures">
       <UniqueIdentifier>{899d1b57-e4e5-46bb-a822-cea7e308fedf}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Models">
+      <UniqueIdentifier>{7bead7f2-0306-461f-9ba4-6f8741bc63f3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FileLoader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
@@ -51,6 +53,18 @@
     <None Include="billboard.geom">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="resources\models\Camaro.3dobj">
+      <Filter>Models</Filter>
+    </None>
+    <None Include="resources\models\cube.3dobj">
+      <Filter>Models</Filter>
+    </None>
+    <None Include="resources\models\dragon.3dobj">
+      <Filter>Models</Filter>
+    </None>
+    <None Include="resources\models\sphere.3dobj">
+      <Filter>Models</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\Textures\Metal_AlbedoTransparency.png">
@@ -72,6 +86,45 @@
       <Filter>Textures</Filter>
     </Image>
     <Image Include="resources\textures\Metal_Bump.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Diffuse.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Emissive.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Emissive_sm.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Glossiness.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Height.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Normal.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Normal_xs.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Specular.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_SpecularGlossiness.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Diffuse_lg.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_Emissive_md.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_SpecularGlossiness_i.png">
+      <Filter>Textures</Filter>
+    </Image>
+    <Image Include="resources\textures\Camaro_SpecularGlossiness_md.png">
       <Filter>Textures</Filter>
     </Image>
   </ItemGroup>

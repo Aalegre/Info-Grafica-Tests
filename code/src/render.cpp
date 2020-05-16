@@ -186,6 +186,7 @@ namespace FileLoader {
 		for (unsigned int i = 0; i < uvIndices.size(); i++) {
 			unsigned int uvIndex = uvIndices[i];
 			glm::vec2 uv = temp_uvs[uvIndex - 1];
+			uv.y *= -1;
 			out_uvs.push_back(uv);
 
 		}
@@ -328,6 +329,7 @@ struct Texture {
 	unsigned char* data;
 	unsigned int texture;
 	void Load() {
+		std::cout << "Loading texture: " << path << std::endl;
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -335,6 +337,8 @@ struct Texture {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
+		std::cout << "		size:" << std::to_string(width) << "x" << std::to_string(height) << std::endl;
+		std::cout << "		channels: " << std::to_string(nrChannels) << std::endl;
 		if (data)
 		{
 			switch (nrChannels) {
@@ -358,9 +362,10 @@ struct Texture {
 		}
 		else
 		{
-			std::cout << "Failed to load texture" << std::endl;
+			std::cout << "		Failed to load texture" << std::endl;
 		}
 		stbi_image_free(data);
+		std::cout << "		Texture loaded" << std::endl;
 	}
 };
 
@@ -399,6 +404,7 @@ public:
 	glm::vec3 colorAmbient = { 0,0,0 };
 	glm::vec3 colorDiffuse = { 1,1,1 };
 	glm::vec3 colorSpecular = { 1,1,1 };
+	glm::vec4 tilingOffset = { 1,1,0,0 };
 	glm::float32 specularStrength = 1;
 	glm::float32 normalStrength = 1;
 
@@ -407,6 +413,7 @@ public:
 	Texture albedo;
 	Texture normal;
 	Texture specular;
+	Texture emissive;
 
 	void setupObject() {
 		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
@@ -449,6 +456,7 @@ public:
 		albedo.Load();
 		normal.Load();
 		specular.Load();
+		emissive.Load();
 
 
 		glBindAttribLocation(program, 0, "in_Position");
@@ -465,14 +473,14 @@ private:
 		for (int i = 0; i < vertices.size(); i += 3) {
 
 			// Shortcuts for vertices
-			glm::vec3& v0 = vertices[i + 0];
-			glm::vec3& v1 = vertices[i + 1];
-			glm::vec3& v2 = vertices[i + 2];
+			glm::vec3 v0 = vertices[i + 0];
+			glm::vec3 v1 = vertices[i + 1];
+			glm::vec3 v2 = vertices[i + 2];
 
 			// Shortcuts for UVs
-			glm::vec2& uv0 = uvs[i + 0];
-			glm::vec2& uv1 = uvs[i + 1];
-			glm::vec2& uv2 = uvs[i + 2];
+			glm::vec2 uv0 = uvs[i + 0];
+			glm::vec2 uv1 = uvs[i + 1];
+			glm::vec2 uv2 = uvs[i + 2];
 
 			// Edges of the triangle : postion delta
 			glm::vec3 deltaPos1 = v1 - v0;
@@ -493,7 +501,7 @@ private:
 	}
 
 public:
-	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/cube.3dobj") : name(name_), path(path_) {
+	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/models/cube.3dobj") : name(name_), path(path_) {
 	}
 	~Object() {
 		cleanupObject();
@@ -517,12 +525,14 @@ public:
 		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
 		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
 		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
+		glUniform4f(glGetUniformLocation(program, "_tilingOffset"), tilingOffset.x, tilingOffset.y, tilingOffset.z, tilingOffset.w);
 		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
 		glUniform1f(glGetUniformLocation(program, "_normal_strength"), normalStrength);
 
 		glUniform1i(glGetUniformLocation(program, "_albedo"), 0);
 		glUniform1i(glGetUniformLocation(program, "_normal"), 1);
 		glUniform1i(glGetUniformLocation(program, "_specular"), 2);
+		glUniform1i(glGetUniformLocation(program, "_emissive"), 3);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, albedo.texture);
@@ -532,6 +542,9 @@ public:
 
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, specular.texture);
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, emissive.texture);
 
 		for (size_t i = 0; i < MAX_LIGHTS; i++)
 		{
@@ -573,7 +586,9 @@ public:
 		ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
 		ImGui::ColorEdit3("Specular", &colorSpecular[0]);
 		ImGui::SliderFloat("Specular Strength", &specularStrength, 0, 2);
-		ImGui::SliderFloat("Normal Strength", &normalStrength, 0.001f, 1.05f, "%.3f", .1f);
+		ImGui::SliderFloat("Normal Strength", &normalStrength, 0.1f, 1.05f, "%.3f", .5f);
+		ImGui::DragFloat2("Tiling", &tilingOffset.x, 0.01f);
+		ImGui::DragFloat2("Offset", &tilingOffset.z, 0.01f);
 		ImGui::Spacing();
 		ImGui::Text("Transform:");
 		ImGui::DragFloat3("Position", &position.x, 0.01f);
@@ -628,10 +643,12 @@ void GLinit(int width, int height) {
 	// ...
 	/////////////////////////////////////////////////////////
 
-	cubeObj = new Object();
-	cubeObj->albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
-	cubeObj->normal.path = "resources/textures/Metal_Normal.png";
-	cubeObj->specular.path = "resources/textures/Metal_SpecularSmoothness.png";
+	cubeObj = new Object("Camaro", "resources/models/Camaro.obj");
+	cubeObj->albedo.path = "resources/textures/Camaro_Diffuse_lg.png";
+	cubeObj->normal.path = "resources/textures/Camaro_Normal_xs.png";
+	cubeObj->specular.path = "resources/textures/Camaro_SpecularGlossiness_md.png";
+	cubeObj->emissive.path = "resources/textures/Camaro_Emissive_md.png";
+	cubeObj->scale = { .01f,.01f,.01f };
 	cubeObj->setupObject();
 
 

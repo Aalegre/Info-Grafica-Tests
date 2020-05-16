@@ -141,7 +141,6 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <ClCompile Include="src\render.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FileLoader.h" />
     <ClInclude Include="stb_image.h" />
   </ItemGroup>
   <ItemGroup>
@@ -151,12 +150,29 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="resources\cube_org.frag" />
     <None Include="resources\cube_org.vert" />
     <None Include="resources\explode.geom" />
+    <None Include="resources\models\Camaro.3dobj" />
+    <None Include="resources\models\cube.3dobj" />
+    <None Include="resources\models\dragon.3dobj" />
+    <None Include="resources\models\sphere.3dobj" />
     <None Include="resources\phong.frag" />
     <None Include="resources\phong.vert" />
     <None Include="resources\unlit.frag" />
     <None Include="resources\unlit.vert" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="resources\textures\Camaro_Diffuse.png" />
+    <Image Include="resources\textures\Camaro_Diffuse_lg.png" />
+    <Image Include="resources\textures\Camaro_Emissive.png" />
+    <Image Include="resources\textures\Camaro_Emissive_md.png" />
+    <Image Include="resources\textures\Camaro_Emissive_sm.png" />
+    <Image Include="resources\textures\Camaro_Glossiness.png" />
+    <Image Include="resources\textures\Camaro_Height.png" />
+    <Image Include="resources\textures\Camaro_Normal.png" />
+    <Image Include="resources\textures\Camaro_Normal_xs.png" />
+    <Image Include="resources\textures\Camaro_Specular.png" />
+    <Image Include="resources\textures\Camaro_SpecularGlossiness.png" />
+    <Image Include="resources\textures\Camaro_SpecularGlossiness_i.png" />
+    <Image Include="resources\textures\Camaro_SpecularGlossiness_md.png" />
     <Image Include="resources\Textures\MetalPaint_AlbedoTransparency.png" />
     <Image Include="resources\Textures\MetalPaint_Normal.png" />
     <Image Include="resources\Textures\MetalPaint_SpecularSmoothness.png" />
