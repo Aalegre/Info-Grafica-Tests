@@ -3,7 +3,12 @@
 #include <glm\gtc\matrix_transform.hpp>
 #include <cstdio>
 #include <cassert>
+#include <string>
 #include <vector>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -11,10 +16,12 @@
 #include <imgui\imgui_impl_sdl_gl3.h>
 
 #include "GL_framework.h"
-#include "../FileLoader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stb_image.h"
+
+
+#pragma warning(disable:4996)
 
 ///////// fw decl
 namespace ImGui {
@@ -31,9 +38,7 @@ namespace RenderVars {
 	const float Initial_FOV = glm::radians(65.f);
 	float FOV = glm::radians(65.f);
 	const float zNear = 0.001f;
-	const float zFar = 500.f;
-	float autoDollyVel = 4.f;
-	int DollyDirection = -1;
+	const float zFar = 1000.f;
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -48,15 +53,17 @@ namespace RenderVars {
 	} prevMouse;
 
 	const float initial_panv[3] = { 0.f, -2.5f, -5.f };
-	const float MAX_panv[3] = { 0.f, -2.5f, -40.f };
 	const float initial_rota[2] = { 0.f, 0.f };
 
 	float panv[3] = { initial_panv[0],initial_panv[1], initial_panv[2] };
 	float rota[2] = { 0.f, 0.f };
-	float width;
 
-	bool useDolly = false;
-	bool lastDollyState = false;
+	void UpdateProjection() {
+		GLint m_viewport[4];
+		glGetIntegerv(GL_VIEWPORT, m_viewport);
+
+		_projection = glm::perspective(FOV, (float)m_viewport[2] / (float)m_viewport[3], zNear, zFar);
+	}
 }
 namespace RV = RenderVars;
 
@@ -67,7 +74,7 @@ void GLResize(int width, int height) {
 }
 
 void GLmousecb(MouseEvent ev) {
-	if (RV::prevMouse.waspressed && RV::prevMouse.button == ev.button && !RV::useDolly) {
+	if (RV::prevMouse.waspressed && RV::prevMouse.button == ev.button) {
 		float diffx = ev.posx - RV::prevMouse.lastx;
 		float diffy = ev.posy - RV::prevMouse.lasty;
 		switch (ev.button) {
@@ -93,7 +100,105 @@ void GLmousecb(MouseEvent ev) {
 	RV::prevMouse.lasty = ev.posy;
 }
 
-//////////////////////////////////////////////////
+#pragma region Loading
+
+namespace FileLoader {
+	std::string LoadString(const std::string& path_) {
+		std::ifstream f(path_); //taking file as inputstream
+		std::string str;
+		if (f) {
+			std::ostringstream ss;
+			ss << f.rdbuf(); // reading data
+			str = ss.str();
+		}
+		return str;
+	}
+
+
+	bool LoadOBJ(const char* path,
+		std::vector < glm::vec3 >& out_vertices,
+		std::vector < glm::vec2 >& out_uvs,
+		std::vector < glm::vec3 >& out_normals) {
+
+		std::vector< unsigned int > vertexIndices, uvIndices, normalIndices;
+		std::vector< glm::vec3 > temp_vertices;
+		std::vector< glm::vec2 > temp_uvs;
+		std::vector< glm::vec3 > temp_normals;
+
+		FILE* file = fopen(path, "r");
+		if (file == NULL) {
+			printf("Impossible to open the file !\n");
+			return false;
+		}
+
+		while (1) {
+
+			char lineHeader[128];
+			// read the first word of the line
+			int res = fscanf(file, "%s", lineHeader);
+			if (res == EOF)
+				break; // EOF = End Of File. Quit the loop.
+
+			// else : parse lineHeader
+			if (strcmp(lineHeader, "v") == 0) {
+				glm::vec3 vertex;
+				fscanf(file, "%f %f %f\n", &vertex.x, &vertex.y, &vertex.z);
+				temp_vertices.push_back(vertex);
+			}
+			else if (strcmp(lineHeader, "vt") == 0) {
+				glm::vec2 uv;
+				fscanf(file, "%f %f\n", &uv.x, &uv.y);
+				temp_uvs.push_back(uv);
+			}
+			else if (strcmp(lineHeader, "vn") == 0) {
+				glm::vec3 normal;
+				fscanf(file, "%f %f %f\n", &normal.x, &normal.y, &normal.z);
+				temp_normals.push_back(normal);
+			}
+			else if (strcmp(lineHeader, "f") == 0) {
+				std::string vertex1, vertex2, vertex3;
+				unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
+				int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vertexIndex[0], &uvIndex[0], &normalIndex[0], &vertexIndex[1], &uvIndex[1], &normalIndex[1], &vertexIndex[2], &uvIndex[2], &normalIndex[2]);
+				if (matches != 9) {
+					printf("File can't be read by our simple parser : ( Try exporting with other options\n");
+					return false;
+				}
+				vertexIndices.push_back(vertexIndex[0]);
+				vertexIndices.push_back(vertexIndex[1]);
+				vertexIndices.push_back(vertexIndex[2]);
+				uvIndices.push_back(uvIndex[0]);
+				uvIndices.push_back(uvIndex[1]);
+				uvIndices.push_back(uvIndex[2]);
+				normalIndices.push_back(normalIndex[0]);
+				normalIndices.push_back(normalIndex[1]);
+				normalIndices.push_back(normalIndex[2]);
+			}
+		}
+
+		// For each vertex of each triangle
+		for (unsigned int i = 0; i < vertexIndices.size(); i++) {
+			unsigned int vertexIndex = vertexIndices[i];
+			glm::vec3 vertex = temp_vertices[vertexIndex - 1];
+			out_vertices.push_back(vertex);
+
+		}
+		for (unsigned int i = 0; i < uvIndices.size(); i++) {
+			unsigned int uvIndex = uvIndices[i];
+			glm::vec2 uv = temp_uvs[uvIndex - 1];
+			out_uvs.push_back(uv);
+
+		}
+		for (unsigned int i = 0; i < normalIndices.size(); i++) {
+			unsigned int normalIndex = normalIndices[i];
+			glm::vec3 normal = temp_normals[normalIndex - 1];
+			out_normals.push_back(normal);
+
+		}
+		return true;
+
+	}
+}
+
 GLuint compileShader(const char* shaderStr, GLenum shaderType, const char* name = "") {
 	GLuint shader = glCreateShader(shaderType);
 	glShaderSource(shader, 1, &shaderStr, NULL);
@@ -115,6 +220,7 @@ GLuint compileShader(const char* shaderStr, GLenum shaderType, const char* name 
 GLuint compileShaderFromFile(const char* shaderPath, GLenum shaderType, const char* name = "") {
 	return compileShader(FileLoader::LoadString(shaderPath).c_str(), shaderType, name);
 }
+
 void linkProgram(GLuint program) {
 	glLinkProgram(program);
 	GLint res;
@@ -127,6 +233,8 @@ void linkProgram(GLuint program) {
 		delete[] buff;
 	}
 }
+
+#pragma endregion
 
 ////////////////////////////////////////////////// AXIS
 namespace Axis {
@@ -333,7 +441,8 @@ namespace Cube {
 	}
 }
 
-/////////////////////////////////////////////////
+
+#pragma region PHONG
 
 struct Texture {
 	int width = 1024, height = 1024, nrChannels = 4;
@@ -589,223 +698,10 @@ public:
 		glDeleteShader(shaders[1]);
 	}
 };
-class ObjectExplode {
-	//const char* path = "cube.3dobj";
-	const std::string path;
-	const std::string name;
 
-	std::vector <glm::vec3> vertices;
-	std::vector <glm::vec2> uvs;
-	std::vector <glm::vec3> normals;
-
-	GLuint vao;
-	GLuint vbo[3];
-	GLuint shaders[3];
-	GLuint program;
-
-	glm::mat4 objMat;
-
-public:
-	glm::vec3 colorAmbient = { 1.f,0.5f,0.5f };
-	glm::float32 explode = 0;
-
-	void setupObject() {
-		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
-
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
-		glGenBuffers(4, vbo);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
-		glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(0);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec3), &normals[0], GL_STATIC_DRAW);
-		glVertexAttribPointer((GLuint)1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(1);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[2]);
-		glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), &uvs[0], GL_STATIC_DRAW);
-		glVertexAttribPointer((GLuint)2, 2, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(2);
-
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		shaders[0] = compileShaderFromFile("resources/phong.vert", GL_VERTEX_SHADER, "objectVertexShader");
-		shaders[1] = compileShaderFromFile("resources/explode.geom", GL_GEOMETRY_SHADER, "objectGeometryShader");
-		shaders[2] = compileShaderFromFile("resources/phong.frag", GL_FRAGMENT_SHADER, "objectFragmentShader");
-
-		program = glCreateProgram();
-		glAttachShader(program, shaders[0]);
-		glAttachShader(program, shaders[1]);
-		glAttachShader(program, shaders[2]);
-
-		glBindAttribLocation(program, 0, "in_Position");
-		glBindAttribLocation(program, 1, "in_Normal");
-		glBindAttribLocation(program, 2, "in_UVs");
-		glBindAttribLocation(program, 3, "in_Tangent");
-		linkProgram(program);
-
-		objMat = glm::mat4(1.f);
-
-	}
-
-	ObjectExplode(const std::string & name_ = "explosion", const std::string & path_ = "resources/Chasis.3dobj") : name(name_), path(path_) {
-	}
-	~ObjectExplode() {
-		cleanupObject();
-	}
-
-
-	void updateObject(glm::mat4 matrix) {
-		objMat = matrix;
-	}
-
-	void drawObject() {
-		glBindVertexArray(vao);
-		glUseProgram(program);
-
-		glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
-		glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
-		glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
-		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
-		glUniform1f(glGetUniformLocation(program, "_time"), explode);
-
-		for (size_t i = 0; i < MAX_LIGHTS; i++)
-		{
-			std::string name = "lights[";
-			name += std::to_string(i);
-			name += "].enabled";
-			glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
-		}
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-
-		glUseProgram(0);
-		glBindVertexArray(0);
-	}
-
-	void drawGUI() {
-		ImGui::Begin(name.c_str());
-
-		ImGui::Text("Material:");
-		ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
-		ImGui::SliderFloat("Explode", &explode, 0.f, 200.f, "%.3f", 5.f);
-		ImGui::End();
-	}
-
-	void cleanupObject() {
-		glDeleteBuffers(3, vbo);
-		glDeleteVertexArrays(1, &vao);
-
-		glDeleteProgram(program);
-		glDeleteShader(shaders[0]);
-		glDeleteShader(shaders[1]);
-		glDeleteShader(shaders[2]);
-	}
-};
-class Billboard {
-	const std::string name;
-
-	glm::vec3 position = { 0,0,0 };
-
-	GLuint vao;
-	GLuint vbo[1];
-	GLuint shaders[3];
-	GLuint program;
-
-	glm::mat4 objMat;
-
-public:
-	glm::vec3 colorAmbient = { 1.f,0.5f,0.5f };
-
-	void setupObject() {
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
-		glGenBuffers(1, vbo);
-
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3), &position, GL_STATIC_DRAW);
-		glVertexAttribPointer((GLuint)0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glEnableVertexAttribArray(0);
-
-		glBindVertexArray(vao);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		shaders[0] = compileShaderFromFile("resources/phong.vert", GL_VERTEX_SHADER, "billboardVertexShader");
-		shaders[1] = compileShaderFromFile("resources/billboard.geom", GL_GEOMETRY_SHADER, "billboardGeometryShader");
-		shaders[2] = compileShaderFromFile("resources/phong.frag", GL_FRAGMENT_SHADER, "billboardFragmentShader");
-
-		program = glCreateProgram();
-		glAttachShader(program, shaders[0]);
-		glAttachShader(program, shaders[1]);
-		glAttachShader(program, shaders[2]);
-
-		glBindAttribLocation(program, 0, "in_Position");
-		linkProgram(program);
-
-		objMat = glm::mat4(1.f);
-
-	}
-
-	Billboard(const std::string & name_ = "billboard") : name(name_) {
-	}
-	~Billboard() {
-		cleanupObject();
-	}
-
-
-	void updateObject(glm::mat4 matrix) {
-		objMat = matrix;
-	}
-
-	void drawObject() {
-		glBindVertexArray(vao);
-		glUseProgram(program);
-
-		//glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
-		//glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
-		//glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
-		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
-
-		for (size_t i = 0; i < MAX_LIGHTS; i++)
-		{
-			std::string name = "lights[";
-			name += std::to_string(i);
-			name += "].enabled";
-			glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
-		}
-		glDrawArrays(GL_POINTS, 0, 1);
-
-		glUseProgram(0);
-		glBindVertexArray(0);
-	}
-
-	void drawGUI() {
-		ImGui::Begin(name.c_str());
-
-		ImGui::Text("Material:");
-		ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
-		ImGui::End();
-	}
-
-	void cleanupObject() {
-		glDeleteBuffers(1, vbo);
-		glDeleteVertexArrays(1, &vao);
-
-		glDeleteProgram(program);
-		glDeleteShader(shaders[0]);
-		glDeleteShader(shaders[1]);
-		glDeleteShader(shaders[2]);
-	}
-};
-
+#pragma endregion
 
 Object* cubeObj;
-ObjectExplode* chasis;
-Billboard* billboard;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -844,10 +740,6 @@ void GLinit(int width, int height) {
 	cubeObj->normal.path = "resources/textures/Metal_Normal.png";
 	cubeObj->specular.path = "resources/textures/Metal_SpecularSmoothness.png";
 	cubeObj->setupObject();
-	chasis = new ObjectExplode();
-	chasis->setupObject();
-	billboard = new Billboard();
-	billboard->setupObject();
 
 	//cubeObj2 = new Object("cube2");
 	//cubeObj2->albedo.path = "resources/textures/Metal_AlbedoTransparency.png";
@@ -859,27 +751,19 @@ void GLinit(int width, int height) {
 
 	lights.push_back(Light());
 
-	RV::width = tanf(RV::FOV / 2) * (glm::abs(RV::panv[2]));
 
 }
 
 void GLcleanup() {
 	Axis::cleanupAxis();
 	delete cubeObj;
-	delete chasis;
-	delete billboard;
 }
 
-float rotation = 1.f;
-bool enablerotation = true;
 
 void GLrender(float dt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	if (RV::lastDollyState != RV::useDolly) {
-		ResetPanV();
-		RV::lastDollyState = RV::useDolly;
-	}
+	RV::UpdateProjection();
 
 	RV::_modelView = glm::mat4(1.f);
 
@@ -891,30 +775,6 @@ void GLrender(float dt) {
 		glm::vec3(0.f, 1.f, 0.f));
 
 	RV::_MVP = RV::_projection * RV::_modelView;
-
-	if (RV::useDolly) {
-		//actualizar FOV
-		GLint m_viewport[4];
-		glGetIntegerv(GL_VIEWPORT, m_viewport);
-
-		RV::FOV = tanf(RV::width / glm::abs(RV::panv[2])) * 2;
-		RV::_projection = glm::perspective(RV::FOV, (float)m_viewport[2] / (float)m_viewport[3], RV::zNear, RV::zFar);
-
-		float currentTime = ImGui::GetTime();
-
-		if (RV::panv[2] >= RV::initial_panv[2])
-		{
-			RV::DollyDirection = -1;
-			RV::autoDollyVel = 4;
-		}
-		else if(RV::panv[2] <= RV::MAX_panv[2] )
-		{
-			RV::DollyDirection = 1;
-			RV::autoDollyVel = 4;
-		}
-		RV::panv[2] += RV::DollyDirection * RV::autoDollyVel * dt;
-		RV::autoDollyVel += 1*dt;
-	}
 
 	Axis::drawAxis();
 	for (size_t i = 0; i < lights.size(); i++)
@@ -929,44 +789,8 @@ void GLrender(float dt) {
 		cubeObj->updateObject(t * r * s);
 		cubeObj->drawObject();
 	}
-	{
-		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, -7.5));
-		glm::mat4 r = glm::mat4(1.f);
-		float size = .3f;
-		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-		chasis->updateObject(t * r * s);
-		chasis->drawObject();
-	}
-	{
-		glm::mat4 t = glm::translate(glm::mat4(), glm::vec3(0, 0, 0));
-		glm::mat4 r = glm::mat4(1.f);
-		float size = 1.f;
-		glm::mat4 s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-		billboard->updateObject(t * r * s);
-		//billboard->drawObject();
-	}
 
 
-	//t = glm::translate(glm::mat4(), glm::vec3(-1.7f, 0, 0));
-	//r = glm::rotate(glm::mat4(), rotation, glm::vec3(0, 1, 0));
-	//size = 1.f;
-	//s = glm::scale(glm::mat4(), glm::vec3(size, size, size));
-	//cubeObj2->updateObject(t * r * s);
-	//cubeObj2->drawObject();
-	
-	//t = glm::translate(glm::mat4(), glm::vec3(-10, 0, -20));
-	//r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, 1, 0));
-	//cubeObj->updateObject(t * r * s);
-	//cubeObj->drawObject();
-
-
-	//t = glm::translate(glm::mat4(), glm::vec3(10, 0, -20));
-	//r = glm::rotate(glm::mat4(), 25.f, glm::vec3(0, -1, 0));
-	//cubeObj->updateObject(t * r * s);
-	//cubeObj->drawObject();
-
-	if (enablerotation)
-		rotation += dt;
 
 	ImGui::Render();
 }
@@ -980,77 +804,67 @@ void GUI() {
 		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 		ImGui::Text("center of action\n\tx: %.3f\n\ty: %.3f\n\tz: %.3f", RV::panv[0], RV::panv[1], RV::panv[2]);
 		ImGui::Text("center of rotation\n\tx: %.3f\n\ty: %.3f\n\tz: %.3f", RV::rota[0], RV::rota[1], RV::rota[2]);
-		ImGui::Text("FOV = %.3f", glm::degrees(RV::FOV));
-		/////////////////////////////////////////////////////TODO
-		// Do your GUI code here....
-		// ...
-		// ...
-		// ...
-		/////////////////////////////////////////////////////////
-		//ImGui::DragFloat4("Color", &Object::color[0], .1f, 0, 0, "%.3f", .1f);
-		//ImGui::DragFloat4("Light Pos", &Object::light[0], .1f, 0, 0, "%.3f", .1f);
 
-		int previousLightSize = lights.size();
-		int newLightsSize = lights.size();
-		ImGui::SliderInt("Lights", &newLightsSize, 0, MAX_LIGHTS);
-		for (size_t i = 0; i < lights.size(); i++)
 		{
-			ImGui::Spacing();
-			std::string name = std::to_string(i);
-			name += " position";
-			ImGui::DragFloat3(name.c_str(), &lights.at(i).position[0], .01f);
-			name = std::to_string(i);
-			name += " color";
-			ImGui::DragFloat3(name.c_str(), &lights.at(i).color[0], .01f);
-			name = std::to_string(i);
-			name += " strength";
-			ImGui::DragFloat(name.c_str(), &lights.at(i).strength, .01f);
-		}
-		if (previousLightSize != newLightsSize) {
-			if (previousLightSize > newLightsSize) {
-				while (previousLightSize != newLightsSize) {
-					lights.pop_back();
-					newLightsSize++;
-				}
+			ImGui::Text("Camera:");
+
+			ImGui::Text("FOV = %.3f", glm::degrees(RV::FOV));
+			float currentFov = glm::degrees(RV::FOV);
+			ImGui::SliderFloat("FOV", &currentFov, 1, 179);
+			if (currentFov != glm::degrees(RV::FOV)) {
+				RV::FOV = glm::radians(currentFov);
 			}
-			else {
-				while (previousLightSize != newLightsSize) {
-					Light newLight;
-					newLight.strength = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 10;
-					newLight.color.x = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-					newLight.color.y = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-					newLight.color.z = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-					newLight.position.x = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
-					newLight.position.y = ((static_cast <float> (rand()) / static_cast <float> (RAND_MAX))) * 2 + 1;
-					newLight.position.z = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
-					lights.push_back(newLight);
-					newLightsSize--;
-				}
+			if (ImGui::Button("reset transform")) {
+				ResetPanV();
 			}
 		}
-
-		ImGui::NewLine();
-		ImGui::Checkbox("Toogle Rotation", &enablerotation);
-		ImGui::NewLine();
-		ImGui::SliderFloat("distance: ", &RV::panv[2], RV::initial_panv[2], RV::MAX_panv[2]);
-		ImGui::SliderFloat("Dolly Velocity: ", &RV::autoDollyVel, 0.001f, 20.f);
-
-		if (ImGui::Button("reset transform", ImVec2(140, 30))) {
-			ResetPanV();
+		{
+			int previousLightSize = lights.size();
+			int newLightsSize = lights.size();
+			ImGui::SliderInt("Lights", &newLightsSize, 0, MAX_LIGHTS);
+			for (size_t i = 0; i < lights.size(); i++)
+			{
+				ImGui::Spacing();
+				std::string name = std::to_string(i);
+				name += " position";
+				ImGui::DragFloat3(name.c_str(), &lights.at(i).position[0], .01f);
+				name = std::to_string(i);
+				name += " color";
+				ImGui::DragFloat3(name.c_str(), &lights.at(i).color[0], .01f);
+				name = std::to_string(i);
+				name += " strength";
+				ImGui::DragFloat(name.c_str(), &lights.at(i).strength, .01f);
+			}
+			if (previousLightSize != newLightsSize) {
+				if (previousLightSize > newLightsSize) {
+					while (previousLightSize != newLightsSize) {
+						lights.pop_back();
+						newLightsSize++;
+					}
+				}
+				else {
+					while (previousLightSize != newLightsSize) {
+						Light newLight;
+						newLight.strength = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 10;
+						newLight.color.x = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+						newLight.color.y = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+						newLight.color.z = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
+						newLight.position.x = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
+						newLight.position.y = ((static_cast <float> (rand()) / static_cast <float> (RAND_MAX))) * 2 + 1;
+						newLight.position.z = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
+						lights.push_back(newLight);
+						newLightsSize--;
+					}
+				}
+			}
 		}
-		if (ImGui::Button("Invert Dolly", ImVec2(140, 30))) {
-			RV::DollyDirection *= -1;
-		}
 
-		ImGui::Checkbox("Toogle Dolly", &RV::useDolly);
 	}
 	// .........................
 
 	ImGui::End();
 
 		cubeObj->drawGUI();
-		chasis->drawGUI();
-		billboard->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {
