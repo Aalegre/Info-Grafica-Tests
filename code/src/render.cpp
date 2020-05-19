@@ -46,6 +46,7 @@ namespace RenderVars {
 	glm::mat4 _MVP;
 	glm::mat4 _inv_modelview;
 	glm::vec4 _cameraPoint;
+	glm::mat4 _view;
 
 	struct prevMouse {
 		float lastx, lasty;
@@ -320,6 +321,111 @@ namespace Axis {
 	}
 }
 
+
+class Skybox {
+public:
+	float vertices[3];
+
+	GLuint program;
+	GLuint VAO, VBO;
+
+	GLuint cubemapID;
+
+	~Skybox() {
+		cleanup();
+	}
+
+	void init() {
+		GLuint vertex_shader = compileShaderFromFile("resources/skybox.vert", GL_VERTEX_SHADER, "skyboxVert");
+		GLuint geometry_shader = compileShaderFromFile("resources/skybox.geom", GL_GEOMETRY_SHADER, "skyboxGeom");
+		GLuint fragment_shader = compileShaderFromFile("resources/skybox.frag", GL_FRAGMENT_SHADER, "skyboxFrag");
+		program = glCreateProgram();
+		glAttachShader(program, vertex_shader);
+		glAttachShader(program, geometry_shader);
+		glAttachShader(program, fragment_shader);
+		linkProgram(program);
+		glDeleteShader(vertex_shader);
+		glDeleteShader(geometry_shader);
+		glDeleteShader(fragment_shader);
+
+		glGenVertexArrays(1, &VAO);
+		glBindVertexArray(VAO);
+		glGenBuffers(1, &VBO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		vertices[0] = 0;
+		vertices[1] = 0;
+		vertices[2] = 0;
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+		glEnableVertexAttribArray(0);
+
+		glGenTextures(1, &cubemapID);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapID);
+
+		int width, height, nchannels;
+		unsigned char* data;
+		/*
+		std::vector<std::string> textures_faces = {
+			"cubemap/right.png",
+			"cubemap/left.png",
+			"cubemap/up.png",
+			"cubemap/down.png",
+			"cubemap/back.png",
+			"cubemap/front.png",
+		};
+		*/
+		std::vector<std::string> textures_faces = {
+
+			"resources/textures/River_Skybox/right.jpg",
+			"resources/textures/River_Skybox/left.jpg",
+			"resources/textures/River_Skybox/top.jpg",
+			"resources/textures/River_Skybox/bottom.jpg",
+			"resources/textures/River_Skybox/front.jpg",
+			"resources/textures/River_Skybox/back.jpg",
+		};
+		for (GLuint i = 0; i < textures_faces.size(); i++) {
+			data = stbi_load(textures_faces[i].c_str(), &width, &height, &nchannels, 0);
+			if (data == NULL) {
+				fprintf(stderr, "Error loading image %s", textures_faces[i].c_str());
+				exit(1);
+			}
+			printf("%d %d %d\n", width, height, nchannels);
+			unsigned int mode = nchannels == 3 ? GL_RGB : GL_RGBA;
+			glTexImage2D(
+				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+				0, GL_RGB, width, height, 0, mode, GL_UNSIGNED_BYTE, data
+			);
+			stbi_image_free(data);
+		}
+
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+		glBindVertexArray(0);
+	}
+
+	void cleanup() {
+		// Deallocate the resources
+		glDeleteProgram(program);
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+	}
+
+	void render() {
+		glUseProgram(program);
+		glBindVertexArray(VAO);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapID);
+
+		glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_FALSE, glm::value_ptr(RV::_projection));
+		glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_FALSE, glm::value_ptr(RV::_view));
+
+		glDrawArrays(GL_POINTS, 0, 1);
+	}
+};
 
 #pragma region PHONG
 
@@ -609,6 +715,8 @@ public:
 
 #pragma endregion
 
+
+Skybox skybox;
 Object* cubeObj;
 
 void ResetPanV() {
@@ -644,21 +752,24 @@ void GLinit(int width, int height) {
 	/////////////////////////////////////////////////////////
 
 	cubeObj = new Object("Camaro", "resources/models/Camaro.obj");
-	cubeObj->albedo.path = "resources/textures/Camaro_Diffuse_lg.png";
-	cubeObj->normal.path = "resources/textures/Camaro_Normal_xs.png";
-	cubeObj->specular.path = "resources/textures/Camaro_SpecularGlossiness_md.png";
-	cubeObj->emissive.path = "resources/textures/Camaro_Emissive_md.png";
+	cubeObj->albedo.path = "resources/textures/Camaro/Camaro_Diffuse_lg.png";
+	cubeObj->normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
+	cubeObj->specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness_md.png";
+	cubeObj->emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
 	cubeObj->scale = { .01f,.01f,.01f };
 	cubeObj->setupObject();
 
 
 	lights.push_back(Light());
 
+	skybox.init();
+
 
 }
 
 void GLcleanup() {
 	Axis::cleanupAxis();
+	skybox.cleanup();
 	delete cubeObj;
 }
 
@@ -678,6 +789,14 @@ void GLrender(float dt) {
 		glm::vec3(0.f, 1.f, 0.f));
 
 	RV::_MVP = RV::_projection * RV::_modelView;
+
+	RV::_view = glm::mat4(glm::mat3(RV::_modelView));
+
+	glDepthMask(GL_FALSE);
+	skybox.render();
+	glDepthMask(GL_TRUE);
+
+
 
 	Axis::drawAxis();
 	for (size_t i = 0; i < lights.size(); i++)
