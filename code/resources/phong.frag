@@ -16,6 +16,7 @@ uniform vec4	_color_specular;
 uniform vec4	_tilingOffset;
 uniform float	_specular_strength;
 uniform float	_normal_strength;
+uniform float   _alphaCutout;
 
 
 uniform sampler2D _albedo;
@@ -64,20 +65,22 @@ void main(){
 	texCoord.g = texCoord.g * _tilingOffset.g;
 	texCoord.r = texCoord.r + _tilingOffset.b;
 	texCoord.g = texCoord.g + _tilingOffset.w;
+	vec4 albedoColor = texture(_albedo, texCoord);
+	if(albedoColor.w < _alphaCutout){
+		discard;
+	}
 	vec3 fixed_normal_tex = (texture(_normal, texCoord ).rgb * 0.5 + 0.5);
 	vec4 frag_Normal_n = vec4(normalize(frag_TBN * fixed_normal_tex), 0) * _normal_strength;
 	vec4 specular_tex = texture(_specular, texCoord);
 	vec4 specular_tex_color = specular_tex;
-//	specular_tex_color.w = (specular_tex_color.w * -1) + 1;
 	for	(int i = 0; i < LIGHT_POINT_MAX; i++){
 		if(lights[i].enabled){
-			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, texture(_albedo, texCoord) * _color_diffuse);
+			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, albedoColor * _color_diffuse);
 			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
 		}
 	}
 
 //RESULT
-//	out_Color = vec4(texCoord.r, texCoord.g, 0, 0);
 out_Color =
 		+ texture(_emissive, texCoord)
 		+ _color_ambient

@@ -163,6 +163,7 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="skybox.vert" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="resources\textures\Camaro\Camaro_AlbedoTransparency.png" />
     <Image Include="resources\textures\Camaro\Camaro_Diffuse.png" />
     <Image Include="resources\textures\Camaro\Camaro_Diffuse_lg.png" />
     <Image Include="resources\textures\Camaro\Camaro_Emissive.png" />

@@ -513,6 +513,7 @@ public:
 	glm::vec4 tilingOffset = { 1,1,0,0 };
 	glm::float32 specularStrength = 1;
 	glm::float32 normalStrength = 1;
+	glm::float32 alphaCutout = 0;
 
 
 
@@ -634,6 +635,7 @@ public:
 		glUniform4f(glGetUniformLocation(program, "_tilingOffset"), tilingOffset.x, tilingOffset.y, tilingOffset.z, tilingOffset.w);
 		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
 		glUniform1f(glGetUniformLocation(program, "_normal_strength"), normalStrength);
+		glUniform1f(glGetUniformLocation(program, "_alphaCutout"), alphaCutout);
 
 		glUniform1i(glGetUniformLocation(program, "_albedo"), 0);
 		glUniform1i(glGetUniformLocation(program, "_normal"), 1);
@@ -695,6 +697,7 @@ public:
 		ImGui::SliderFloat("Normal Strength", &normalStrength, 0.1f, 1.05f, "%.3f", .5f);
 		ImGui::DragFloat2("Tiling", &tilingOffset.x, 0.01f);
 		ImGui::DragFloat2("Offset", &tilingOffset.z, 0.01f);
+		ImGui::SliderFloat("Alpha cutout", &alphaCutout, -0.001f, 1.001f, "%.3f", .5f);
 		ImGui::Spacing();
 		ImGui::Text("Transform:");
 		ImGui::DragFloat3("Position", &position.x, 0.01f);
@@ -752,11 +755,13 @@ void GLinit(int width, int height) {
 	/////////////////////////////////////////////////////////
 
 	cubeObj = new Object("Camaro", "resources/models/Camaro.obj");
-	cubeObj->albedo.path = "resources/textures/Camaro/Camaro_Diffuse_lg.png";
+	cubeObj->albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
+	cubeObj->alphaCutout = .9f;
 	cubeObj->normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
-	cubeObj->specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness_md.png";
+	cubeObj->specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
 	cubeObj->emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
 	cubeObj->scale = { .01f,.01f,.01f };
+	cubeObj->rotation.y = -90;
 	cubeObj->setupObject();
 
 
