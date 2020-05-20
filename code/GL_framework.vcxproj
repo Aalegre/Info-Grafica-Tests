@@ -159,11 +159,11 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="resources\models\sphere.3dobj" />
     <None Include="resources\phong.frag" />
     <None Include="resources\phong.vert" />
+    <None Include="resources\skybox.frag" />
     <None Include="resources\skybox.geom" />
+    <None Include="resources\skybox.vert" />
     <None Include="resources\unlit.frag" />
     <None Include="resources\unlit.vert" />
-    <None Include="skybox.frag" />
-    <None Include="skybox.vert" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\textures\Bush\Bush_Bush_Diffuse.png" />

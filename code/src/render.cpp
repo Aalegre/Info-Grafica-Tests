@@ -20,6 +20,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stb_image.h"
+#include <map>
 
 
 #pragma warning(disable:4996)
@@ -31,7 +32,7 @@ namespace ImGui {
 namespace Axis {
 	void setupAxis();
 	void cleanupAxis();
-	void drawAxis(glm::vec3 position_ = {0,0,0});
+	void drawAxis(glm::vec3 position_ = {0,0,0}, float scale_ = 1);
 }
 ////////////////
 
@@ -308,12 +309,12 @@ namespace Axis {
 		glDeleteShader(AxisShader[0]);
 		glDeleteShader(AxisShader[1]);
 	}
-	void drawAxis(glm::vec3 position_) {
+	void drawAxis(glm::vec3 position_, float scale_) {
 		glBindVertexArray(AxisVao);
 		glUseProgram(AxisProgram);
 		glUniformMatrix4fv(glGetUniformLocation(AxisProgram, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RV::_MVP));
 		glUniform3f(glGetUniformLocation(AxisProgram, "_position"), position_.x, position_.y, position_.z);
-		glUniform1f(glGetUniformLocation(AxisProgram, "_scale"), 1);
+		glUniform1f(glGetUniformLocation(AxisProgram, "_scale"), scale_);
 		glDrawElements(GL_LINES, 6, GL_UNSIGNED_BYTE, 0);
 
 		glUseProgram(0);
@@ -325,6 +326,10 @@ namespace Axis {
 class Skybox {
 public:
 	float vertices[3];
+	float exposureMin = 0;
+	float exposureMax = 1;
+	float rotation = 0;
+	glm::vec3 tint;
 
 	GLuint program;
 	GLuint VAO, VBO;
@@ -422,6 +427,10 @@ public:
 
 		glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_FALSE, glm::value_ptr(RV::_projection));
 		glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_FALSE, glm::value_ptr(RV::_view));
+		glUniform1f(glGetUniformLocation(program, "_rotation"), rotation);
+		glUniform1f(glGetUniformLocation(program, "_exposureMin"), exposureMin);
+		glUniform1f(glGetUniformLocation(program, "_exposureMax"), exposureMax);
+		glUniform4f(glGetUniformLocation(program, "_tint"), tint.x, tint.y, tint.z, 1);
 
 		glDrawArrays(GL_POINTS, 0, 1);
 	}
@@ -475,19 +484,34 @@ struct Texture {
 	}
 };
 
-struct Light {
+struct PointLight {
 	glm::vec3 color = { 1,1,1 };
 	glm::vec3 position = { 0,2,-3 };
 	glm::float32 strength = 10;
 };
+struct DirectionalLight {
+	glm::vec3 color = { 1, 1, 1 };
+	glm::vec3 direction = { 0,1,0 };
+	glm::float32 strength = 0.5f;
+};
 
 const int MAX_LIGHTS = 16;
-std::vector<Light> lights;
+std::vector<PointLight> lights;
+DirectionalLight mainLight;
 
+
+struct Location {
+	glm::vec3 position = { 0,0,0 };
+	glm::vec3 rotation = { 0,0,0 };
+	glm::vec3 scale = { 1,1,1 };
+	Location(glm::vec3 position_ = { 0,0,0 }, glm::vec3 rotation_ = { 0,0,0 }, glm::vec3 scale_ = { 1,1,1 }) : position(position_), rotation(rotation_), scale(scale_){
+
+	}
+};
 class Object {
 	//const char* path = "cube.3dobj";
-	const std::string path;
-	const std::string name;
+	std::string path;
+	std::string name;
 
 	std::vector <glm::vec3> vertices;
 	std::vector <glm::vec2> uvs;
@@ -502,10 +526,8 @@ class Object {
 	glm::mat4 objMat;
 
 public:
-
-	glm::vec3 position = { 0,0,0 };
-	glm::vec3 rotation = { 0,0,0 };
-	glm::vec3 scale = { 1,1,1 };
+	float preScaler = 1;
+	std::vector<Location> locations;
 
 	glm::vec3 colorAmbient = { 0,0,0 };
 	glm::vec3 colorDiffuse = { 1,1,1 };
@@ -614,15 +636,22 @@ public:
 		cleanupObject();
 	}
 
-	void updateObject() {
-		glm::mat4 t = glm::translate(glm::mat4(), position);
-		glm::mat4 r = glm::toMat4(glm::fquat(glm::radians(rotation)));
-		glm::mat4 s = glm::scale(glm::mat4(), scale);
+	void updateObject(Location location_) {
+		glm::mat4 t = glm::translate(glm::mat4(), location_.position);
+		glm::mat4 r = glm::toMat4(glm::fquat(glm::radians(location_.rotation)));
+		glm::mat4 s = glm::scale(glm::mat4(), location_.scale * preScaler);
 		objMat = t * r * s;
 	}
 
+	void drawObjects() {
+		for (size_t i = 0; i < locations.size(); i++)
+		{
+			updateObject(locations[i]);
+			drawObject();
+		}
+	}
+
 	void drawObject() {
-		updateObject();
 		glBindVertexArray(vao);
 		glUseProgram(program);
 
@@ -680,6 +709,11 @@ public:
 			name += "].strength";
 			glUniform1f(glGetUniformLocation(program, name.c_str()), lights.at(i).strength);
 		}
+
+		glUniform4f(glGetUniformLocation(program, "_mainLight.direction"), mainLight.direction.x, mainLight.direction.y, mainLight.direction.z, 0);
+		glUniform4f(glGetUniformLocation(program, "_mainLight.color"), mainLight.color.x, mainLight.color.y, mainLight.color.z, 0);
+		glUniform1f(glGetUniformLocation(program, "_mainLight.strength"), mainLight.strength);
+
 		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 
 		glUseProgram(0);
@@ -699,10 +733,33 @@ public:
 		ImGui::DragFloat2("Offset", &tilingOffset.z, 0.01f);
 		ImGui::SliderFloat("Alpha cutout", &alphaCutout, -0.001f, 1.001f, "%.3f", .5f);
 		ImGui::Spacing();
-		ImGui::Text("Transform:");
-		ImGui::DragFloat3("Position", &position.x, 0.01f);
-		ImGui::DragFloat3("Rotation", &rotation.x);
-		ImGui::DragFloat3("Scale", &scale.x, 0.01f);
+		ImGui::Text("Transforms:");
+
+		int locationsCount = locations.size();
+		ImGui::DragInt("Instances count", &locationsCount, .1f);
+		for (size_t i = 0; i < locations.size(); i++)
+		{
+			ImGui::Spacing();
+			std::string tempString = std::to_string(i + 1);
+			tempString += " Position";
+			ImGui::DragFloat3(tempString.c_str(), &locations[i].position.x, 0.01f);
+			tempString = std::to_string(i + 1);
+			tempString += " Rotation";
+			ImGui::DragFloat3(tempString.c_str(), &locations[i].rotation.x);
+			tempString = std::to_string(i + 1);
+			tempString += " Scale";
+			ImGui::DragFloat3(tempString.c_str(), &locations[i].scale.x, 0.01f);
+		}
+		if (locationsCount < 0)
+			locationsCount = 0;
+		if (locationsCount != locations.size()) {
+			while (locationsCount > locations.size()) {
+				locations.push_back(Location());
+			}
+			while (locationsCount < locations.size()) {
+				locations.pop_back();
+			}
+		}
 		ImGui::End();
 	}
 
@@ -720,10 +777,7 @@ public:
 
 
 Skybox skybox;
-Object* camaro;
-Object* bush;
-Object* parterre;
-Object* lampara;
+std::map<std::string, Object> objects;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -756,23 +810,49 @@ void GLinit(int width, int height) {
 	// ...
 	// ...
 	/////////////////////////////////////////////////////////
-
-	camaro = new Object("Camaro", "resources/models/Camaro.obj");
-	camaro->albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
-	camaro->alphaCutout = .9f;
-	camaro->normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
-	camaro->specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
-	camaro->emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
-	camaro->scale = { .01f,.01f,.01f };
-	camaro->rotation.y = -90;
-	camaro->setupObject();
-	bush = new Object("Bush", "resources/models/Bush.3dobj");
-	bush->albedo.path = "resources/textures/Bush/Bush_Diffuse.png";
-	bush->alphaCutout = .001f;
-	bush->normal.path = "resources/textures/Bush/Bush_Normal.png";
-	bush->specular.path = "resources/textures/Bush/Bush_SpecularGlossines.png";
-	bush->scale = { .01f,.01f,.01f };
-	bush->setupObject();
+	{
+		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.obj");
+		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
+		objects["Camaro"].alphaCutout = .9f;
+		objects["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
+		objects["Camaro"].specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
+		objects["Camaro"].emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
+		objects["Camaro"].preScaler = 0.02f;
+		objects["Camaro"].locations.push_back(Location());
+		objects["Camaro"].setupObject();
+	}
+	{
+		objects["Bush"] = Object("Bush", "resources/models/Bush.3dobj");
+		objects["Bush"].albedo.path = "resources/textures/Bush/Bush_Diffuse.png";
+		objects["Bush"].alphaCutout = .001f;
+		objects["Bush"].normal.path = "resources/textures/Bush/Bush_Normal.png";
+		objects["Bush"].specular.path = "resources/textures/Bush/Bush_SpecularGlossines.png";
+		objects["Bush"].preScaler = 0.1f;
+		objects["Bush"].locations.push_back(Location());
+		objects["Bush"].setupObject();
+	}
+	{
+		objects["Floor"] = Object("Floor", "resources/models/Floor.3dobj");
+		objects["Floor"].albedo.path = "resources/textures/Floor/Floor_BaseColor.png";
+		objects["Floor"].normal.path = "resources/textures/Floor/Floor_Normal.png";
+		objects["Floor"].specular.path = "resources/textures/Floor/Floor_SpecularSmoothness.png";
+		objects["Floor"].preScaler = 0.05f;
+		const int floorWidth = 20;
+		const int floorLength = 10;
+		float posX = -(floorWidth / 2.f) * 5;
+		float posY = -(floorLength / 2.f) * 5;
+		for (size_t i = 0; i < floorWidth; i++)
+		{
+			posY = -(floorLength / 2.f);
+			posX += 5;
+			for (size_t j = 0; j < floorLength; j++)
+			{
+				objects["Floor"].locations.push_back(Location({ posX, 0, posY }));
+				posY += 5;
+			}
+		}
+		objects["Floor"].setupObject();
+	}
 	//parterre = new Object("Parterre", "resources/models/Parterre.3dobj");
 	//parterre->albedo.path = "resources/textures/Parterre/Bush_Diffuse.png";
 	//parterre->normal.path = "resources/textures/Parterre/Bush_Normal.png";
@@ -782,9 +862,15 @@ void GLinit(int width, int height) {
 	//parterre->setupObject();
 
 
-	lights.push_back(Light());
+	lights.push_back(PointLight());
 
 	skybox.init();
+	skybox.exposureMin = -.15f;
+	skybox.exposureMax = .3f;
+	skybox.tint = { 1, .8f, .7f };
+
+	mainLight.color = { 1, .8f, .5f };
+	mainLight.direction = { 0,0.5f,-0.866f };
 
 
 }
@@ -792,8 +878,7 @@ void GLinit(int width, int height) {
 void GLcleanup() {
 	Axis::cleanupAxis();
 	skybox.cleanup();
-	delete camaro;
-	delete bush;
+	objects.clear();
 }
 
 
@@ -821,14 +906,16 @@ void GLrender(float dt) {
 
 
 
-	Axis::drawAxis();
 	for (size_t i = 0; i < lights.size(); i++)
 	{
-		Axis::drawAxis(lights.at(i).position);
+		Axis::drawAxis(lights.at(i).position, 0.01f);
 	}
 	{
-		camaro->drawObject();
-		bush->drawObject();
+		for (std::map<std::string, Object>::iterator it = objects.begin(); it != objects.end(); ++it)
+		{
+			it->second.drawObjects();
+		}
+
 	}
 
 
@@ -860,9 +947,22 @@ void GUI() {
 			}
 		}
 		{
+			ImGui::NewLine();
+			ImGui::Text("Enviroment");
+			ImGui::DragFloat("Exposure min", &skybox.exposureMin, 0.01f);
+			ImGui::DragFloat("Exposure max", &skybox.exposureMax, 0.01f);
+			ImGui::ColorEdit3("Tint", &skybox.tint[0], 0.01f);
+			ImGui::Spacing();
+			ImGui::Text("Main light");
+			ImGui::DragFloat3("Direction", &mainLight.direction[0], .01f);
+			ImGui::ColorEdit3("Color", &mainLight.color[0], .01f);
+			ImGui::DragFloat("Strength", &mainLight.strength, .01f);
+			mainLight.direction = glm::normalize(mainLight.direction);
+			ImGui::Spacing();
+			ImGui::Text("Point lights");
 			int previousLightSize = lights.size();
 			int newLightsSize = lights.size();
-			ImGui::SliderInt("Lights", &newLightsSize, 0, MAX_LIGHTS);
+			ImGui::SliderInt("Count", &newLightsSize, 0, MAX_LIGHTS);
 			for (size_t i = 0; i < lights.size(); i++)
 			{
 				ImGui::Spacing();
@@ -871,7 +971,7 @@ void GUI() {
 				ImGui::DragFloat3(name.c_str(), &lights.at(i).position[0], .01f);
 				name = std::to_string(i);
 				name += " color";
-				ImGui::DragFloat3(name.c_str(), &lights.at(i).color[0], .01f);
+				ImGui::ColorEdit3(name.c_str(), &lights.at(i).color[0], .01f);
 				name = std::to_string(i);
 				name += " strength";
 				ImGui::DragFloat(name.c_str(), &lights.at(i).strength, .01f);
@@ -885,7 +985,7 @@ void GUI() {
 				}
 				else {
 					while (previousLightSize != newLightsSize) {
-						Light newLight;
+						PointLight newLight;
 						newLight.strength = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 10;
 						newLight.color.x = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
 						newLight.color.y = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
@@ -905,8 +1005,10 @@ void GUI() {
 
 	ImGui::End();
 
-		camaro->drawGUI();
-		bush->drawGUI();
+	for (std::map<std::string, Object>::iterator it = objects.begin(); it != objects.end(); ++it)
+	{
+		it->second.drawGUI();
+	}
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {

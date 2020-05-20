@@ -5,6 +5,7 @@ out vec3 textureDir;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform float _rotation;
 
 vec4 verts[] = vec4[8](
 	vec4(-4.0, -4.0, -4.0, 1.0),

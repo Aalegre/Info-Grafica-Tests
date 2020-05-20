@@ -83,12 +83,6 @@
     <None Include="resources\skybox.geom">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="skybox.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="skybox.frag">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="resources\models\Bush.3dobj">
       <Filter>Models</Filter>
     </None>
@@ -97,6 +91,12 @@
     </None>
     <None Include="resources\models\Parterre.3dobj">
       <Filter>Models</Filter>
+    </None>
+    <None Include="resources\skybox.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\skybox.vert">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

@@ -26,6 +26,26 @@ uniform sampler2D _emissive;
 
 #define LIGHT_POINT_MAX 16
 
+struct DirectionalLight{
+    vec4 direction;
+    vec4 color;
+	float strength;
+	vec4 getDiffuse(vec4 d_vertexNormal, vec4 d_vertexPosition, vec4 d_diffuseColor)
+	{
+		return max(dot(d_vertexNormal, direction), 0)
+			* d_diffuseColor * color * strength;
+	}
+	vec4 getSpecular(vec4 s_vertexNormal, vec4 s_vertexPosition, vec4 s_specularColor, mat4 s_modelView, float s_strength)
+	{
+		vec4 s_camera_position = inverse(s_modelView)[3];
+		vec4 s_camera_direction = normalize(s_camera_position - s_vertexPosition);
+		vec4 s_ref_direction = reflect(-direction, s_vertexNormal);
+		return pow(max(dot(s_camera_direction, s_ref_direction), 0.0), 32)
+			* s_specularColor * color * strength * s_strength;
+	}
+};
+uniform DirectionalLight _mainLight;
+
 struct PointLight {
 	bool enabled;
     vec4 position;
@@ -79,6 +99,8 @@ void main(){
 			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
 		}
 	}
+	diffuse += _mainLight.getDiffuse(frag_Normal_n, frag_Pos, albedoColor * _color_diffuse);
+	specular += _mainLight.getSpecular(frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
 
 //RESULT
 out_Color =
