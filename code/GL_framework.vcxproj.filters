@@ -24,6 +24,15 @@
     <Filter Include="Textures\River_Skybox">
       <UniqueIdentifier>{c5ba0cb9-cf09-4b4b-8268-28062fb5ee63}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Textures\Bush">
+      <UniqueIdentifier>{203634ad-e2c9-4ffa-bcf0-3c7b43ac36a6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Textures\Parterre">
+      <UniqueIdentifier>{58d44527-57d0-41e9-b0ca-e8eb27aa26df}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Textures\Lampara">
+      <UniqueIdentifier>{fd9f6480-58a1-4073-b06e-ee9512d4cd10}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stb_image.h" />
@@ -79,6 +88,15 @@
     </None>
     <None Include="skybox.frag">
       <Filter>Shaders</Filter>
+    </None>
+    <None Include="resources\models\Bush.3dobj">
+      <Filter>Models</Filter>
+    </None>
+    <None Include="resources\models\Lampara.3dobj">
+      <Filter>Models</Filter>
+    </None>
+    <None Include="resources\models\Parterre.3dobj">
+      <Filter>Models</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -162,6 +180,42 @@
     </Image>
     <Image Include="resources\textures\Camaro\Camaro_AlbedoTransparency.png">
       <Filter>Textures\Camaro</Filter>
+    </Image>
+    <Image Include="resources\textures\Bush\Bush_Bush_Diffuse.png">
+      <Filter>Textures\Bush</Filter>
+    </Image>
+    <Image Include="resources\textures\Bush\Bush_Bush_Normal.png">
+      <Filter>Textures\Bush</Filter>
+    </Image>
+    <Image Include="resources\textures\Bush\Bush_Bush_SpecularGlossines.png">
+      <Filter>Textures\Bush</Filter>
+    </Image>
+    <Image Include="resources\textures\Parterre\Parterre_Diffuse.png">
+      <Filter>Textures\Parterre</Filter>
+    </Image>
+    <Image Include="resources\textures\Parterre\Parterre_Glossiness.png">
+      <Filter>Textures\Parterre</Filter>
+    </Image>
+    <Image Include="resources\textures\Parterre\Parterre_Normal.png">
+      <Filter>Textures\Parterre</Filter>
+    </Image>
+    <Image Include="resources\textures\Parterre\Parterre_Specular.png">
+      <Filter>Textures\Parterre</Filter>
+    </Image>
+    <Image Include="resources\textures\Lampara\Lampara_Diffuse.png">
+      <Filter>Textures\Lampara</Filter>
+    </Image>
+    <Image Include="resources\textures\Lampara\Lampara_Emissive.png">
+      <Filter>Textures\Lampara</Filter>
+    </Image>
+    <Image Include="resources\textures\Lampara\Lampara_Glossiness.png">
+      <Filter>Textures\Lampara</Filter>
+    </Image>
+    <Image Include="resources\textures\Lampara\Lampara_Normal.png">
+      <Filter>Textures\Lampara</Filter>
+    </Image>
+    <Image Include="resources\textures\Lampara\Lampara_Specular.png">
+      <Filter>Textures\Lampara</Filter>
     </Image>
   </ItemGroup>
 </Project>

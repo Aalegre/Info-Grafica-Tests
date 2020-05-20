@@ -150,9 +150,12 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="resources\cube_org.frag" />
     <None Include="resources\cube_org.vert" />
     <None Include="resources\explode.geom" />
+    <None Include="resources\models\Bush.3dobj" />
     <None Include="resources\models\Camaro.3dobj" />
     <None Include="resources\models\cube.3dobj" />
     <None Include="resources\models\dragon.3dobj" />
+    <None Include="resources\models\Lampara.3dobj" />
+    <None Include="resources\models\Parterre.3dobj" />
     <None Include="resources\models\sphere.3dobj" />
     <None Include="resources\phong.frag" />
     <None Include="resources\phong.vert" />
@@ -163,6 +166,9 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="skybox.vert" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="resources\textures\Bush\Bush_Bush_Diffuse.png" />
+    <Image Include="resources\textures\Bush\Bush_Bush_Normal.png" />
+    <Image Include="resources\textures\Bush\Bush_Bush_SpecularGlossines.png" />
     <Image Include="resources\textures\Camaro\Camaro_AlbedoTransparency.png" />
     <Image Include="resources\textures\Camaro\Camaro_Diffuse.png" />
     <Image Include="resources\textures\Camaro\Camaro_Diffuse_lg.png" />
@@ -177,6 +183,11 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <Image Include="resources\textures\Camaro\Camaro_SpecularGlossiness.png" />
     <Image Include="resources\textures\Camaro\Camaro_SpecularGlossiness_i.png" />
     <Image Include="resources\textures\Camaro\Camaro_SpecularGlossiness_md.png" />
+    <Image Include="resources\textures\Lampara\Lampara_Diffuse.png" />
+    <Image Include="resources\textures\Lampara\Lampara_Emissive.png" />
+    <Image Include="resources\textures\Lampara\Lampara_Glossiness.png" />
+    <Image Include="resources\textures\Lampara\Lampara_Normal.png" />
+    <Image Include="resources\textures\Lampara\Lampara_Specular.png" />
     <Image Include="resources\Textures\MetalPaint_AlbedoTransparency.png" />
     <Image Include="resources\Textures\MetalPaint_Normal.png" />
     <Image Include="resources\Textures\MetalPaint_SpecularSmoothness.png" />
@@ -184,6 +195,10 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <Image Include="resources\textures\Metal_Bump.png" />
     <Image Include="resources\Textures\Metal_Normal.png" />
     <Image Include="resources\Textures\Metal_SpecularSmoothness.png" />
+    <Image Include="resources\textures\Parterre\Parterre_Diffuse.png" />
+    <Image Include="resources\textures\Parterre\Parterre_Glossiness.png" />
+    <Image Include="resources\textures\Parterre\Parterre_Normal.png" />
+    <Image Include="resources\textures\Parterre\Parterre_Specular.png" />
     <Image Include="resources\textures\River_Skybox\back.jpg" />
     <Image Include="resources\textures\River_Skybox\bottom.jpg" />
     <Image Include="resources\textures\River_Skybox\front.jpg" />

@@ -720,7 +720,10 @@ public:
 
 
 Skybox skybox;
-Object* cubeObj;
+Object* camaro;
+Object* bush;
+Object* parterre;
+Object* lampara;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -739,7 +742,7 @@ void GLinit(int width, int height) {
 	glClearDepth(1.f);
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_CULL_FACE);
+	//glEnable(GL_CULL_FACE);
 
 	RV::_projection = glm::perspective(RV::FOV, (float)width / (float)height, RV::zNear, RV::zFar);
 
@@ -754,15 +757,29 @@ void GLinit(int width, int height) {
 	// ...
 	/////////////////////////////////////////////////////////
 
-	cubeObj = new Object("Camaro", "resources/models/Camaro.obj");
-	cubeObj->albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
-	cubeObj->alphaCutout = .9f;
-	cubeObj->normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
-	cubeObj->specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
-	cubeObj->emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
-	cubeObj->scale = { .01f,.01f,.01f };
-	cubeObj->rotation.y = -90;
-	cubeObj->setupObject();
+	camaro = new Object("Camaro", "resources/models/Camaro.obj");
+	camaro->albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
+	camaro->alphaCutout = .9f;
+	camaro->normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
+	camaro->specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
+	camaro->emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
+	camaro->scale = { .01f,.01f,.01f };
+	camaro->rotation.y = -90;
+	camaro->setupObject();
+	bush = new Object("Bush", "resources/models/Bush.3dobj");
+	bush->albedo.path = "resources/textures/Bush/Bush_Diffuse.png";
+	bush->alphaCutout = .001f;
+	bush->normal.path = "resources/textures/Bush/Bush_Normal.png";
+	bush->specular.path = "resources/textures/Bush/Bush_SpecularGlossines.png";
+	bush->scale = { .01f,.01f,.01f };
+	bush->setupObject();
+	//parterre = new Object("Parterre", "resources/models/Parterre.3dobj");
+	//parterre->albedo.path = "resources/textures/Parterre/Bush_Diffuse.png";
+	//parterre->normal.path = "resources/textures/Parterre/Bush_Normal.png";
+	//parterre->specular.path = "resources/textures/Parterre/Bush_SpecularGlossines.png";
+	//parterre->emissive.path = "resources/textures/Parterre/Bush_SpecularGlossines.png";
+	//parterre->scale = { .01f,.01f,.01f };
+	//parterre->setupObject();
 
 
 	lights.push_back(Light());
@@ -775,7 +792,8 @@ void GLinit(int width, int height) {
 void GLcleanup() {
 	Axis::cleanupAxis();
 	skybox.cleanup();
-	delete cubeObj;
+	delete camaro;
+	delete bush;
 }
 
 
@@ -809,7 +827,8 @@ void GLrender(float dt) {
 		Axis::drawAxis(lights.at(i).position);
 	}
 	{
-		cubeObj->drawObject();
+		camaro->drawObject();
+		bush->drawObject();
 	}
 
 
@@ -886,7 +905,8 @@ void GUI() {
 
 	ImGui::End();
 
-		cubeObj->drawGUI();
+		camaro->drawGUI();
+		bush->drawGUI();
 	// Example code -- ImGui test window. Most of the sample code is in ImGui::ShowTestWindow()
 	bool show_test_window = false;
 	if (show_test_window) {
