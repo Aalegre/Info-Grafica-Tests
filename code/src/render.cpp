@@ -508,6 +508,7 @@ struct Location {
 
 	}
 };
+
 class Object {
 	//const char* path = "cube.3dobj";
 	std::string path;
@@ -644,18 +645,8 @@ public:
 	}
 
 	void drawObjects() {
-		for (size_t i = 0; i < locations.size(); i++)
-		{
-			updateObject(locations[i]);
-			drawObject();
-		}
-	}
-
-	void drawObject() {
 		glBindVertexArray(vao);
 		glUseProgram(program);
-
-		glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
 		glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
 		glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
 		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
@@ -714,10 +705,18 @@ public:
 		glUniform4f(glGetUniformLocation(program, "_mainLight.color"), mainLight.color.x, mainLight.color.y, mainLight.color.z, 0);
 		glUniform1f(glGetUniformLocation(program, "_mainLight.strength"), mainLight.strength);
 
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-
+		for (size_t i = 0; i < locations.size(); i++)
+		{
+			updateObject(locations[i]);
+			drawObjectInstanced();
+		}
 		glUseProgram(0);
 		glBindVertexArray(0);
+	}
+
+	void drawObjectInstanced() {
+		glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 	}
 
 	void drawGUI() {
@@ -865,11 +864,10 @@ void GLinit(int width, int height) {
 	lights.push_back(PointLight());
 
 	skybox.init();
-	skybox.exposureMin = -.15f;
-	skybox.exposureMax = .3f;
+	skybox.exposureMax = .5f;
 	skybox.tint = { 1, .8f, .7f };
 
-	mainLight.color = { 1, .8f, .5f };
+	mainLight.color = { 1, .75f, .56f };
 	mainLight.direction = { 0,0.5f,-0.866f };
 
 
