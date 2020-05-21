@@ -2,6 +2,7 @@
 #include <glm\gtc\type_ptr.hpp>
 #include <glm\gtc\matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
+#include <glm/gtx/compatibility.hpp>
 #include <cstdio>
 #include <cassert>
 #include <string>
@@ -439,8 +440,8 @@ public:
 #pragma region PHONG
 
 struct Texture {
-	int width = 1024, height = 1024, nrChannels = 4;
-	std::string path;
+	int width = 0, height = 0, nrChannels = 0;
+	std::string path = "";
 	unsigned char* data;
 	unsigned int texture;
 	void Load() {
@@ -486,8 +487,8 @@ struct Texture {
 
 struct PointLight {
 	glm::vec3 color = { 1,1,1 };
-	glm::vec3 position = { 0,2,-3 };
-	glm::float32 strength = 10;
+	glm::vec3 position = { 0,0,0 };
+	glm::float32 strength = 15;
 };
 struct DirectionalLight {
 	glm::vec3 color = { 1, 1, 1 };
@@ -506,6 +507,52 @@ struct Location {
 	glm::vec3 scale = { 1,1,1 };
 	Location(glm::vec3 position_ = { 0,0,0 }, glm::vec3 rotation_ = { 0,0,0 }, glm::vec3 scale_ = { 1,1,1 }) : position(position_), rotation(rotation_), scale(scale_){
 
+	}
+};
+
+float RandomFloat(float a, float b) {
+	float random = ((float)rand()) / (float)RAND_MAX;
+	float diff = b - a;
+	float r = random * diff;
+	return a + r;
+}
+
+struct Path {
+	glm::vec3 positionCurrent = { 0,0,0 };
+	glm::vec3 positionDesired = { 0,0,0 };
+
+	glm::vec3 direcitonCurrent = { 0,0,0 };
+	glm::vec3 direcitonDesired = { 0,0,0 };
+
+	glm::vec3 rotation = {0,0,0};
+
+	float speed = 1;
+	float nextPosMin = 1;
+	float nextPosMax = 2;
+	float nextPosTime = 0;
+	float timer = 0;
+	glm::vec3 max = {45, 0, 17.5f};
+	glm::vec3 min = { -45, 0, -17.5f };
+	glm::vec3 NextPosition() {
+		glm::vec3 newPos = { 0,0,0 };
+		newPos.x = RandomFloat(min.x, max.x);
+		newPos.y = RandomFloat(min.y, max.y);
+		newPos.z = RandomFloat(min.z, max.z);
+		return newPos;
+	}
+	void UpdatePosition(float dt_) {
+		timer += dt_;
+		if (timer > nextPosTime) {
+			positionDesired = NextPosition();
+			nextPosTime = timer + RandomFloat(nextPosMin, nextPosMax);
+		}
+		glm::vec3 lookPos = glm::lerp(positionCurrent, positionDesired, dt_ * speed);
+		direcitonDesired = (lookPos - positionCurrent);
+		direcitonCurrent = glm::lerp(direcitonCurrent, direcitonDesired, dt_ * speed * 0.5f);
+		positionCurrent += direcitonCurrent;
+		glm::vec3 dir = glm::normalize(direcitonCurrent);
+		rotation.x = asin(dir.y) * (180 / glm::pi<float>());
+		rotation.y = atan2(dir.x, dir.z) * (180 / glm::pi<float>());
 	}
 };
 
@@ -528,6 +575,7 @@ class Object {
 
 public:
 	float preScaler = 1;
+	bool instancesEditable = true;
 	std::vector<Location> locations;
 
 	glm::vec3 colorAmbient = { 0,0,0 };
@@ -583,10 +631,10 @@ public:
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
 
-		albedo.Load();
-		normal.Load();
-		specular.Load();
-		emissive.Load();
+			albedo.Load();
+			normal.Load();
+			specular.Load();
+			emissive.Load();
 
 
 		glBindAttribLocation(program, 0, "in_Position");
@@ -751,7 +799,7 @@ public:
 		}
 		if (locationsCount < 0)
 			locationsCount = 0;
-		if (locationsCount != locations.size()) {
+		if (instancesEditable && locationsCount != locations.size()) {
 			while (locationsCount > locations.size()) {
 				locations.push_back(Location());
 			}
@@ -777,6 +825,7 @@ public:
 
 Skybox skybox;
 std::map<std::string, Object> objects;
+std::vector<Path> carPaths;
 
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
@@ -813,55 +862,113 @@ void GLinit(int width, int height) {
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.obj");
 		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
 		objects["Camaro"].alphaCutout = .9f;
-		objects["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
+		//objects["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
 		objects["Camaro"].specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
 		objects["Camaro"].emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
 		objects["Camaro"].preScaler = 0.02f;
-		objects["Camaro"].locations.push_back(Location());
+		for (size_t i = 0; i < 5; i++)
+		{
+			objects["Camaro"].locations.push_back(Location());
+			carPaths.push_back(Path());
+			carPaths[i].positionCurrent = carPaths[i].NextPosition();
+		}
+		objects["Camaro"].instancesEditable = false;
 		objects["Camaro"].setupObject();
+
 	}
 	{
+		objects["Parterre"] = Object("Parterre", "resources/models/Parterre.3dobj");
+		objects["Parterre"].albedo.path = "resources/textures/Parterre/Parterre_Diffuse.png";
+		objects["Parterre"].preScaler = 1.f;
+
 		objects["Bush"] = Object("Bush", "resources/models/Bush.3dobj");
 		objects["Bush"].albedo.path = "resources/textures/Bush/Bush_Diffuse.png";
 		objects["Bush"].alphaCutout = .001f;
-		objects["Bush"].normal.path = "resources/textures/Bush/Bush_Normal.png";
+		//objects["Bush"].normal.path = "resources/textures/Bush/Bush_Normal.png";
 		objects["Bush"].specular.path = "resources/textures/Bush/Bush_SpecularGlossines.png";
-		objects["Bush"].preScaler = 0.1f;
-		objects["Bush"].locations.push_back(Location());
+		objects["Bush"].preScaler = 1.f;
+		const int scale = 14;
+		const int repeatX = 8;
+		float posX = (repeatX / 2) * -scale + scale * 0.5f;
+		float posY;
+
+		for (size_t i = 0; i < repeatX; i++)
+		{
+			posY = 20;
+			objects["Bush"].locations.push_back(Location({ posX, 0, posY }, { 0,RandomFloat(0,360),0 }, { RandomFloat(0.5,2),RandomFloat(1,2),RandomFloat(0.5,2) }));
+			objects["Bush"].locations.push_back(Location({ posX, 0, posY }, { 0,RandomFloat(0,360),0 }, { RandomFloat(0.5,2),RandomFloat(1,2),RandomFloat(0.5,2) }));
+			objects["Parterre"].locations.push_back(Location({ posX, 0, posY }));
+			posX += scale;
+		}
+		posX = (repeatX / 2) * -scale + scale * 0.5f;
+
+		for (size_t i = 0; i < repeatX; i++)
+		{
+			posY = -20;
+			objects["Bush"].locations.push_back(Location({ posX, 0, posY }, { 0,RandomFloat(0,360),0 }, { RandomFloat(0.5,2),RandomFloat(1,2),RandomFloat(0.5,2) }));
+			objects["Bush"].locations.push_back(Location({ posX, 0, posY }, { 0,RandomFloat(0,360),0 }, { RandomFloat(0.5,2),RandomFloat(1,2),RandomFloat(0.5,2) }));
+			objects["Parterre"].locations.push_back(Location({ posX, 0, posY }));
+			posX += scale;
+		}
 		objects["Bush"].setupObject();
+		objects["Parterre"].setupObject();
+	}
+	{
+		objects["Lampara"] = Object("Lampara", "resources/models/Lampara.3dobj");
+		objects["Lampara"].albedo.path = "resources/textures/Lampara/Lampara_Diffuse.png";
+		objects["Lampara"].emissive.path = "resources/textures/Lampara/Lampara_Emissive.png";
+		objects["Lampara"].preScaler = 1.f;
+		PointLight tempLight;
+		const int scale = 14;
+		const int repeatX = 8;
+		float posX = (repeatX / 2) * -scale + scale * 0.5f;
+		float posY;
+
+		for (size_t i = 0; i < repeatX; i++)
+		{
+			posY = 10;
+			objects["Lampara"].locations.push_back(Location({ posX, 0, posY }));
+			tempLight.position = { posX, 5, posY };
+			lights.push_back(tempLight);
+			posX += scale;
+		}
+		posX = (repeatX / 2) * -scale + scale * 0.5f;
+
+		for (size_t i = 0; i < repeatX; i++)
+		{
+			posY = -10;
+			objects["Lampara"].locations.push_back(Location({ posX, 0, posY }));
+			tempLight.position = { posX, 5, posY };
+			lights.push_back(tempLight);
+			posX += scale;
+		}
+		objects["Lampara"].setupObject();
 	}
 	{
 		objects["Floor"] = Object("Floor", "resources/models/Floor.3dobj");
 		objects["Floor"].albedo.path = "resources/textures/Floor/Floor_BaseColor.png";
-		objects["Floor"].normal.path = "resources/textures/Floor/Floor_Normal.png";
+		//objects["Floor"].normal.path = "resources/textures/Floor/Floor_Normal.png";
 		objects["Floor"].specular.path = "resources/textures/Floor/Floor_SpecularSmoothness.png";
 		objects["Floor"].preScaler = 0.05f;
-		const int floorWidth = 20;
-		const int floorLength = 10;
-		float posX = -(floorWidth / 2.f) * 5;
-		float posY = -(floorLength / 2.f) * 5;
-		for (size_t i = 0; i < floorWidth; i++)
+		const int scale = 5;
+		const int repeatX = 21;
+		const int repeatY = 11;
+		float posX = (repeatX / 2) * -scale;
+		float posY;
+
+		for (size_t i = 0; i < repeatX; i++)
 		{
-			posY = -(floorLength / 2.f);
-			posX += 5;
-			for (size_t j = 0; j < floorLength; j++)
+			posY = (repeatY / 2) * -scale;
+			for (size_t j = 0; j < repeatY; j++)
 			{
 				objects["Floor"].locations.push_back(Location({ posX, 0, posY }));
-				posY += 5;
+				posY += scale;
 			}
+			posX += scale;
 		}
 		objects["Floor"].setupObject();
 	}
-	//parterre = new Object("Parterre", "resources/models/Parterre.3dobj");
-	//parterre->albedo.path = "resources/textures/Parterre/Bush_Diffuse.png";
-	//parterre->normal.path = "resources/textures/Parterre/Bush_Normal.png";
-	//parterre->specular.path = "resources/textures/Parterre/Bush_SpecularGlossines.png";
-	//parterre->emissive.path = "resources/textures/Parterre/Bush_SpecularGlossines.png";
-	//parterre->scale = { .01f,.01f,.01f };
-	//parterre->setupObject();
 
-
-	lights.push_back(PointLight());
 
 	skybox.init();
 	skybox.exposureMax = .5f;
@@ -902,8 +1009,14 @@ void GLrender(float dt) {
 	skybox.render();
 	glDepthMask(GL_TRUE);
 
+	for (size_t i = 0; i < carPaths.size(); i++)
+	{
+		carPaths[i].UpdatePosition(dt);
+		objects["Camaro"].locations[i].position = carPaths[i].positionCurrent;
+		objects["Camaro"].locations[i].rotation = carPaths[i].rotation;
+	}
 
-
+	Axis::drawAxis({0,0,0});
 	for (size_t i = 0; i < lights.size(); i++)
 	{
 		Axis::drawAxis(lights.at(i).position, 0.01f);
@@ -983,15 +1096,7 @@ void GUI() {
 				}
 				else {
 					while (previousLightSize != newLightsSize) {
-						PointLight newLight;
-						newLight.strength = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX)) * 10;
-						newLight.color.x = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-						newLight.color.y = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-						newLight.color.z = (static_cast <float> (rand()) / static_cast <float> (RAND_MAX));
-						newLight.position.x = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
-						newLight.position.y = ((static_cast <float> (rand()) / static_cast <float> (RAND_MAX))) * 2 + 1;
-						newLight.position.z = ((static_cast <float> (rand()) * 2 / static_cast <float> (RAND_MAX)) - 1) * 2;
-						lights.push_back(newLight);
+						lights.push_back(PointLight());
 						newLightsSize--;
 					}
 				}
