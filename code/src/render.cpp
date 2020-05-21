@@ -42,6 +42,9 @@ namespace RenderVars {
 	float FOV = glm::radians(65.f);
 	const float zNear = 0.001f;
 	const float zFar = 1000.f;
+	bool FixedView = false;
+	glm::vec3 FixedViewOffset = { -1,-2,-1 };
+	glm::vec2 FixedViewRotation = { 0,0};
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -859,7 +862,7 @@ void GLinit(int width, int height) {
 	// ...
 	/////////////////////////////////////////////////////////
 	{
-		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.obj");
+		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
 		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
 		objects["Camaro"].alphaCutout = .9f;
 		//objects["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
@@ -992,6 +995,12 @@ void GLrender(float dt) {
 
 	RV::UpdateProjection();
 
+	if (RV::FixedView) {
+		RV::panv[0] = -carPaths[0].positionCurrent.x + RV::FixedViewOffset.x;
+		RV::panv[1] = -carPaths[0].positionCurrent.y + RV::FixedViewOffset.y;
+		RV::panv[2] = -carPaths[0].positionCurrent.z + RV::FixedViewOffset.z;
+	}
+
 	RV::_modelView = glm::mat4(1.f);
 
 	RV::_modelView = glm::translate(RV::_modelView,
@@ -1052,6 +1061,11 @@ void GUI() {
 			ImGui::SliderFloat("FOV", &currentFov, 1, 179);
 			if (currentFov != glm::degrees(RV::FOV)) {
 				RV::FOV = glm::radians(currentFov);
+			}
+			ImGui::Checkbox("Cockpit view", &RV::FixedView);
+			if (RV::FixedView) {
+				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
+				ImGui::DragFloat2("Rot", &RV::FixedViewRotation[0], 0.01f);
 			}
 			if (ImGui::Button("reset transform")) {
 				ResetPanV();
