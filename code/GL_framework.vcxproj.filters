@@ -98,6 +98,9 @@
     <None Include="resources\skybox.vert">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="resources\models\Mirror.3dobj">
+      <Filter>Models</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\Textures\Metal_AlbedoTransparency.png">

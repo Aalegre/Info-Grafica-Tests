@@ -155,6 +155,7 @@ xcopy "$(ProjectDir)libs\SDL2.dll" "$(OutDir)" /y /d</Command>
     <None Include="resources\models\cube.3dobj" />
     <None Include="resources\models\dragon.3dobj" />
     <None Include="resources\models\Lampara.3dobj" />
+    <None Include="resources\models\Mirror.3dobj" />
     <None Include="resources\models\Parterre.3dobj" />
     <None Include="resources\models\sphere.3dobj" />
     <None Include="resources\phong.frag" />

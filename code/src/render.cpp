@@ -22,6 +22,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stb_image.h"
 #include <map>
+#include <glm\gtx\euler_angles.hpp>
 
 
 #pragma warning(disable:4996)
@@ -33,7 +34,7 @@ namespace ImGui {
 namespace Axis {
 	void setupAxis();
 	void cleanupAxis();
-	void drawAxis(glm::vec3 position_ = {0,0,0}, float scale_ = 1);
+	void drawAxis(glm::vec3 position_ = { 0,0,0 }, float scale_ = 1);
 }
 ////////////////
 
@@ -44,7 +45,7 @@ namespace RenderVars {
 	const float zFar = 1000.f;
 	bool FixedView = false;
 	glm::vec3 FixedViewOffset = { -1,-2,-1 };
-	glm::vec2 FixedViewRotation = { 0,0};
+	glm::vec2 FixedViewRotation = { 0,0 };
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -508,7 +509,7 @@ struct Location {
 	glm::vec3 position = { 0,0,0 };
 	glm::vec3 rotation = { 0,0,0 };
 	glm::vec3 scale = { 1,1,1 };
-	Location(glm::vec3 position_ = { 0,0,0 }, glm::vec3 rotation_ = { 0,0,0 }, glm::vec3 scale_ = { 1,1,1 }) : position(position_), rotation(rotation_), scale(scale_){
+	Location(glm::vec3 position_ = { 0,0,0 }, glm::vec3 rotation_ = { 0,0,0 }, glm::vec3 scale_ = { 1,1,1 }) : position(position_), rotation(rotation_), scale(scale_) {
 
 	}
 };
@@ -527,14 +528,14 @@ struct Path {
 	glm::vec3 direcitonCurrent = { 0,0,0 };
 	glm::vec3 direcitonDesired = { 0,0,0 };
 
-	glm::vec3 rotation = {0,0,0};
+	glm::vec3 rotation = { 0,0,0 };
 
 	float speed = 1;
 	float nextPosMin = 1;
 	float nextPosMax = 2;
 	float nextPosTime = 0;
 	float timer = 0;
-	glm::vec3 max = {45, 0, 17.5f};
+	glm::vec3 max = { 45, 0, 17.5f };
 	glm::vec3 min = { -45, 0, -17.5f };
 	glm::vec3 NextPosition() {
 		glm::vec3 newPos = { 0,0,0 };
@@ -589,8 +590,6 @@ public:
 	glm::float32 normalStrength = 1;
 	glm::float32 alphaCutout = 0;
 
-
-
 	Texture albedo;
 	Texture normal;
 	Texture specular;
@@ -633,11 +632,12 @@ public:
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
-
-			albedo.Load();
-			normal.Load();
-			specular.Load();
-			emissive.Load();
+		
+		/*
+		albedo.Load();
+		normal.Load();
+		specular.Load();
+		emissive.Load();*/
 
 
 		glBindAttribLocation(program, 0, "in_Position");
@@ -682,7 +682,7 @@ private:
 	}
 
 public:
-	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/models/cube.3dobj") : name(name_), path(path_) {
+	Object(const std::string& name_ = "cube", const std::string& path_ = "resources/models/cube.3dobj") : name(name_), path(path_) {
 	}
 	~Object() {
 		cleanupObject();
@@ -862,6 +862,12 @@ void GLinit(int width, int height) {
 	// ...
 	/////////////////////////////////////////////////////////
 	{
+
+		objects["Mirror"] = Object("Mirror", "resources/models/Mirror.3dobj");
+		objects["Mirror"].locations.push_back(Location());
+		objects["Mirror"].preScaler = 0.02f;
+		objects["Mirror"].setupObject();
+
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
 		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
 		objects["Camaro"].alphaCutout = .9f;
@@ -995,28 +1001,6 @@ void GLrender(float dt) {
 
 	RV::UpdateProjection();
 
-	if (RV::FixedView) {
-		RV::panv[0] = -carPaths[0].positionCurrent.x + RV::FixedViewOffset.x;
-		RV::panv[1] = -carPaths[0].positionCurrent.y + RV::FixedViewOffset.y;
-		RV::panv[2] = -carPaths[0].positionCurrent.z + RV::FixedViewOffset.z;
-	}
-
-	RV::_modelView = glm::mat4(1.f);
-
-	RV::_modelView = glm::translate(RV::_modelView,
-		glm::vec3(RV::panv[0], RV::panv[1], RV::panv[2]));
-	RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1],
-		glm::vec3(1.f, 0.f, 0.f));
-	RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0],
-		glm::vec3(0.f, 1.f, 0.f));
-
-	RV::_MVP = RV::_projection * RV::_modelView;
-
-	RV::_view = glm::mat4(glm::mat3(RV::_modelView));
-
-	glDepthMask(GL_FALSE);
-	skybox.render();
-	glDepthMask(GL_TRUE);
 
 	for (size_t i = 0; i < carPaths.size(); i++)
 	{
@@ -1025,7 +1009,46 @@ void GLrender(float dt) {
 		objects["Camaro"].locations[i].rotation = carPaths[i].rotation;
 	}
 
-	Axis::drawAxis({0,0,0});
+
+	if (RV::FixedView) {
+
+		RV::_modelView = glm::mat4(1.f);
+		RV::_modelView = glm::translate(RV::_modelView, RV::FixedViewOffset - carPaths[0].positionCurrent);
+
+		/*RV::panv[0] = RV::FixedViewOffset.x - carPaths[0].positionCurrent.x;
+		RV::panv[1] = RV::FixedViewOffset.y - carPaths[0].positionCurrent.y;
+		RV::panv[2] = RV::FixedViewOffset.z - carPaths[0].positionCurrent.z;*/
+
+		//glm::mat4 rot = glm::eulerAngleYXZ(carPaths[0].positionCurrent.x, carPaths[0].positionCurrent.y, carPaths[0].positionCurrent.z);
+
+		RV::_modelView = glm::rotate(RV::_modelView, glm::radians(carPaths[0].rotation.y), glm::vec3(0.f, 1.f, 0.f));
+	
+		RV::_MVP = RV::_projection * RV::_modelView;
+
+		RV::_view = glm::mat4(glm::mat3(RV::_modelView));
+		//RV::_view = glm::mat4(glm::mat3(RV::_MVP));
+
+	}
+	else {
+		RV::_modelView = glm::mat4(1.f);
+
+		RV::_modelView = glm::translate(RV::_modelView,	glm::vec3(RV::panv[0], RV::panv[1], RV::panv[2]));
+
+		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1], glm::vec3(1.f, 0.f, 0.f));
+		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0], glm::vec3(0.f, 1.f, 0.f));
+
+		RV::_MVP = RV::_projection * RV::_modelView;
+
+		RV::_view = glm::mat4(glm::mat3(RV::_modelView));
+	}
+
+
+	glDepthMask(GL_FALSE);
+	skybox.render();
+	glDepthMask(GL_TRUE);
+
+
+	Axis::drawAxis({ 0,0,0 });
 	for (size_t i = 0; i < lights.size(); i++)
 	{
 		Axis::drawAxis(lights.at(i).position, 0.01f);
@@ -1066,6 +1089,7 @@ void GUI() {
 			if (RV::FixedView) {
 				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
 				ImGui::DragFloat2("Rot", &RV::FixedViewRotation[0], 0.01f);
+
 			}
 			if (ImGui::Button("reset transform")) {
 				ResetPanV();
