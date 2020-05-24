@@ -1,9 +1,9 @@
 #version 330
-in vec3			in_Position; 
-in vec3			in_Normal; 
-in vec2			in_UVs; 
-in vec3			in_Tangent; 
-uniform mat4	objMat; 
+layout (location = 0)	in vec3		in_Position; 
+layout (location = 1)	in vec3		in_Normal; 
+layout (location = 2)	in vec2		in_UVs; 
+layout (location = 3)	in vec3		in_Tangent; 
+layout (location = 4)	in mat4		objMat; 
 uniform mat4	mvpMat; 
 uniform mat4	mv_Mat; 
 out vec4		frag_Normal;

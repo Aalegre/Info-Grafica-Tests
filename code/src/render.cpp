@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <algorithm>
 
 #include <imgui\imgui.h>
 #include <imgui\imgui_impl_sdl_gl3.h>
@@ -427,6 +428,7 @@ public:
 	void render() {
 		glUseProgram(program);
 		glBindVertexArray(VAO);
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapID);
 
 		glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_FALSE, glm::value_ptr(RV::_projection));
@@ -489,27 +491,72 @@ struct Texture {
 };
 
 struct PointLight {
-	glm::vec3 color = { 1,1,1 };
+	glm::vec3 color = { 1,.9f,.7f };
 	glm::vec3 position = { 0,0,0 };
-	glm::float32 strength = 15;
+	glm::float32 strength = 25;
+	bool operator==(const PointLight& light_)
+	{
+		return this->position == light_.position && this->color == light_.color && this->strength == light_.strength;
+	}
+	bool operator!=(const PointLight& light_)
+	{
+		return !(*this == light_);
+	}
 };
 struct DirectionalLight {
 	glm::vec3 color = { 1, 1, 1 };
 	glm::vec3 direction = { 0,1,0 };
 	glm::float32 strength = 0.5f;
+	bool operator==(const DirectionalLight& light_)
+	{
+		return this->direction == light_.direction && this->color == light_.color && this->strength == light_.strength;
+	}
+	bool operator!=(const DirectionalLight& light_)
+	{
+		return !(*this == light_);
+	}
 };
 
 const int MAX_LIGHTS = 16;
+bool lightsChanged = true;
 std::vector<PointLight> lights;
 DirectionalLight mainLight;
 
 
 struct Location {
+	glm::vec3 cameraPosition = { 0,0,0 };
 	glm::vec3 position = { 0,0,0 };
 	glm::vec3 rotation = { 0,0,0 };
 	glm::vec3 scale = { 1,1,1 };
+	//bool changed = false;
 	Location(glm::vec3 position_ = { 0,0,0 }, glm::vec3 rotation_ = { 0,0,0 }, glm::vec3 scale_ = { 1,1,1 }) : position(position_), rotation(rotation_), scale(scale_){
 
+	}
+	//void Translate(glm::vec3 pos_) {
+	//	changed = true;
+	//	position = pos_;
+	//}
+	//void Rotate(glm::vec3 rot_) {
+	//	changed = true;
+	//	rotation = rot_;
+	//}
+	//void Scale(glm::vec3 sca_) {
+	//	changed = true;
+	//	scale = sca_;
+	//}
+	bool operator<(const Location& loc_)
+	{
+		float distance1 = glm::distance(this->cameraPosition, this->position);
+		float distance2 = glm::distance(loc_.cameraPosition, loc_.position);
+		return distance1 < distance2;
+	}
+	bool operator==(const Location& loc_)
+	{
+		return this->position == loc_.position && this->rotation == loc_.rotation && this->scale == loc_.scale;
+	}
+	bool operator!=(const Location& loc_)
+	{
+		return !(*this == loc_);
 	}
 };
 
@@ -521,6 +568,7 @@ float RandomFloat(float a, float b) {
 }
 
 struct Path {
+	bool update = true;
 	glm::vec3 positionCurrent = { 0,0,0 };
 	glm::vec3 positionDesired = { 0,0,0 };
 
@@ -544,18 +592,20 @@ struct Path {
 		return newPos;
 	}
 	void UpdatePosition(float dt_) {
-		timer += dt_;
-		if (timer > nextPosTime) {
-			positionDesired = NextPosition();
-			nextPosTime = timer + RandomFloat(nextPosMin, nextPosMax);
+		if (update) {
+			timer += dt_;
+			if (timer > nextPosTime) {
+				positionDesired = NextPosition();
+				nextPosTime = timer + RandomFloat(nextPosMin, nextPosMax);
+			}
+			glm::vec3 lookPos = glm::lerp(positionCurrent, positionDesired, dt_ * speed);
+			direcitonDesired = (lookPos - positionCurrent);
+			direcitonCurrent = glm::lerp(direcitonCurrent, direcitonDesired, dt_ * speed * 0.5f);
+			positionCurrent += direcitonCurrent;
+			glm::vec3 dir = glm::normalize(direcitonCurrent);
+			rotation.x = asin(dir.y) * (180 / glm::pi<float>());
+			rotation.y = atan2(dir.x, dir.z) * (180 / glm::pi<float>());
 		}
-		glm::vec3 lookPos = glm::lerp(positionCurrent, positionDesired, dt_ * speed);
-		direcitonDesired = (lookPos - positionCurrent);
-		direcitonCurrent = glm::lerp(direcitonCurrent, direcitonDesired, dt_ * speed * 0.5f);
-		positionCurrent += direcitonCurrent;
-		glm::vec3 dir = glm::normalize(direcitonCurrent);
-		rotation.x = asin(dir.y) * (180 / glm::pi<float>());
-		rotation.y = atan2(dir.x, dir.z) * (180 / glm::pi<float>());
 	}
 };
 
@@ -570,23 +620,24 @@ class Object {
 	std::vector <glm::vec3> tangents;
 
 	GLuint vao;
-	GLuint vbo[4];
+	GLuint vbo[5];
 	GLuint shaders[2];
 	GLuint program;
 
-	glm::mat4 objMat;
-
 public:
 	float preScaler = 1;
-	bool instancesEditable = true;
+	bool modifiedLocations = false;
 	std::vector<Location> locations;
 
+	bool render = true;
+	bool modifiedParameters = true;
 	glm::vec3 colorAmbient = { 0,0,0 };
 	glm::vec3 colorDiffuse = { 1,1,1 };
 	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::vec4 tilingOffset = { 1,1,0,0 };
 	glm::float32 specularStrength = 1;
 	glm::float32 normalStrength = 1;
+	bool inverseAlphaCutout = false;
 	glm::float32 alphaCutout = 0;
 
 
@@ -602,7 +653,7 @@ public:
 
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
-		glGenBuffers(4, vbo);
+		glGenBuffers(5, vbo);
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
@@ -624,6 +675,23 @@ public:
 		glVertexAttribPointer((GLuint)3, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		glEnableVertexAttribArray(3);
 
+		std::vector<glm::mat4> objMats;
+		for (size_t i = 0; i < locations.size(); i++)
+		{
+			objMats.push_back(updateObject(locations[i]));
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+		glBufferData(GL_ARRAY_BUFFER, objMats.size() * sizeof(glm::mat4), &objMats[0][0], GL_DYNAMIC_DRAW);
+
+		for (size_t i = 0; i < 4; i++)
+		{
+			GLuint atributo = 4 + i;
+			glVertexAttribPointer(atributo, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4) * 4, (void*)(sizeof(glm::vec4) * i));
+			glEnableVertexAttribArray(atributo);
+			glVertexAttribDivisor(atributo, 1);
+		}
+
+
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -644,10 +712,32 @@ public:
 		glBindAttribLocation(program, 1, "in_Normal");
 		glBindAttribLocation(program, 2, "in_UVs");
 		glBindAttribLocation(program, 3, "in_Tangent");
+		glBindAttribLocation(program, 4, "objMat");
 		linkProgram(program);
 
-		objMat = glm::mat4(1.f);
 
+		glBindVertexArray(vao);
+		glUseProgram(program);
+
+		glUniform1i(glGetUniformLocation(program, "_albedo"), 0);
+		glUniform1i(glGetUniformLocation(program, "_normal"), 1);
+		glUniform1i(glGetUniformLocation(program, "_specular"), 2);
+		glUniform1i(glGetUniformLocation(program, "_emissive"), 3);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, albedo.texture);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, normal.texture);
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, specular.texture);
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, emissive.texture);
+
+		glUseProgram(0);
+		glBindVertexArray(0);
 	}
 private:
 	void computeTB() {
@@ -688,127 +778,194 @@ public:
 		cleanupObject();
 	}
 
-	void updateObject(Location location_) {
+	glm::mat4 updateObject(Location location_) {
 		glm::mat4 t = glm::translate(glm::mat4(), location_.position);
 		glm::mat4 r = glm::toMat4(glm::fquat(glm::radians(location_.rotation)));
 		glm::mat4 s = glm::scale(glm::mat4(), location_.scale * preScaler);
-		objMat = t * r * s;
+		return t * r * s;
 	}
 
 	void drawObjects() {
-		glBindVertexArray(vao);
-		glUseProgram(program);
-		glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
-		glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
-		glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
-		glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
-		glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
-		glUniform4f(glGetUniformLocation(program, "_tilingOffset"), tilingOffset.x, tilingOffset.y, tilingOffset.z, tilingOffset.w);
-		glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
-		glUniform1f(glGetUniformLocation(program, "_normal_strength"), normalStrength);
-		glUniform1f(glGetUniformLocation(program, "_alphaCutout"), alphaCutout);
+		if (render) {
+			glBindVertexArray(vao);
+			glUseProgram(program);
 
-		glUniform1i(glGetUniformLocation(program, "_albedo"), 0);
-		glUniform1i(glGetUniformLocation(program, "_normal"), 1);
-		glUniform1i(glGetUniformLocation(program, "_specular"), 2);
-		glUniform1i(glGetUniformLocation(program, "_emissive"), 3);
+			glUniformMatrix4fv(glGetUniformLocation(program, "mv_Mat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_modelView));
+			glUniformMatrix4fv(glGetUniformLocation(program, "mvpMat"), 1, GL_FALSE, glm::value_ptr(RenderVars::_MVP));
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, albedo.texture);
+			if (modifiedParameters) {
+				glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
+				glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
+				glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
+				glUniform4f(glGetUniformLocation(program, "_tilingOffset"), tilingOffset.x, tilingOffset.y, tilingOffset.z, tilingOffset.w);
+				glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
+				glUniform1f(glGetUniformLocation(program, "_normal_strength"), normalStrength);
+				glUniform1f(glGetUniformLocation(program, "_alphaCutout"), alphaCutout);
+				if (inverseAlphaCutout) {
+					glUniform1i(glGetUniformLocation(program, "_alphaCutoutInvert"), 1);
+				}
+				else {
+					glUniform1i(glGetUniformLocation(program, "_alphaCutoutInvert"), 0);
+				}
 
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, normal.texture);
+				modifiedParameters = false;
+			}
 
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, specular.texture);
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, albedo.texture);
 
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, emissive.texture);
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, normal.texture);
 
-		for (size_t i = 0; i < MAX_LIGHTS; i++)
-		{
-			std::string name = "lights[";
-			name += std::to_string(i);
-			name += "].enabled";
-			glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
-		}
-		for (size_t i = 0; i < lights.size(); i++)
-		{
-			std::string name = "lights[";
-			name += std::to_string(i);
-			name += "].enabled";
-			glUniform1i(glGetUniformLocation(program, name.c_str()), 1);
-			name = "lights[";
-			name += std::to_string(i);
-			name += "].position";
-			glUniform4f(glGetUniformLocation(program, name.c_str()), lights.at(i).position.x, lights.at(i).position.y, lights.at(i).position.z, 0);
-			name = "lights[";
-			name += std::to_string(i);
-			name += "].color";
-			glUniform4f(glGetUniformLocation(program, name.c_str()), lights.at(i).color.x, lights.at(i).color.y, lights.at(i).color.z, 0);
-			name = "lights[";
-			name += std::to_string(i);
-			name += "].strength";
-			glUniform1f(glGetUniformLocation(program, name.c_str()), lights.at(i).strength);
-		}
+			glActiveTexture(GL_TEXTURE2);
+			glBindTexture(GL_TEXTURE_2D, specular.texture);
 
-		glUniform4f(glGetUniformLocation(program, "_mainLight.direction"), mainLight.direction.x, mainLight.direction.y, mainLight.direction.z, 0);
-		glUniform4f(glGetUniformLocation(program, "_mainLight.color"), mainLight.color.x, mainLight.color.y, mainLight.color.z, 0);
-		glUniform1f(glGetUniformLocation(program, "_mainLight.strength"), mainLight.strength);
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D, emissive.texture);
 
-		for (size_t i = 0; i < locations.size(); i++)
-		{
-			updateObject(locations[i]);
+			if (lightsChanged) {
+
+				for (size_t i = 0; i < MAX_LIGHTS; i++)
+				{
+					std::string name = "lights[";
+					name += std::to_string(i);
+					name += "].enabled";
+					glUniform1i(glGetUniformLocation(program, name.c_str()), 0);
+				}
+				for (size_t i = 0; i < lights.size(); i++)
+				{
+					std::string name = "lights[";
+					name += std::to_string(i);
+					name += "].enabled";
+					glUniform1i(glGetUniformLocation(program, name.c_str()), 1);
+					name = "lights[";
+					name += std::to_string(i);
+					name += "].position";
+					glUniform4f(glGetUniformLocation(program, name.c_str()), lights.at(i).position.x, lights.at(i).position.y, lights.at(i).position.z, 0);
+					name = "lights[";
+					name += std::to_string(i);
+					name += "].color";
+					glUniform4f(glGetUniformLocation(program, name.c_str()), lights.at(i).color.x, lights.at(i).color.y, lights.at(i).color.z, 0);
+					name = "lights[";
+					name += std::to_string(i);
+					name += "].strength";
+					glUniform1f(glGetUniformLocation(program, name.c_str()), lights.at(i).strength);
+				}
+
+				glUniform4f(glGetUniformLocation(program, "_mainLight.direction"), mainLight.direction.x, mainLight.direction.y, mainLight.direction.z, 0);
+				glUniform4f(glGetUniformLocation(program, "_mainLight.color"), mainLight.color.x, mainLight.color.y, mainLight.color.z, 0);
+				glUniform1f(glGetUniformLocation(program, "_mainLight.strength"), mainLight.strength);
+			}
+
+			if (modifiedLocations) {
+				glBindBuffer(GL_ARRAY_BUFFER, vbo[4]);
+
+				glm::mat4* mats = reinterpret_cast<glm::mat4*>(glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY));
+				for (size_t i = 0; i < locations.size(); i++)
+				{
+					mats[i] = updateObject(locations[i]);
+				}
+				glUnmapBuffer(GL_ARRAY_BUFFER);
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+				modifiedLocations = false;
+			}
+
+
 			drawObjectInstanced();
+			glUseProgram(0);
+			glBindVertexArray(0);
 		}
-		glUseProgram(0);
-		glBindVertexArray(0);
 	}
 
 	void drawObjectInstanced() {
-		glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		//glUniformMatrix4fv(glGetUniformLocation(program, "objMat"), 1, GL_FALSE, glm::value_ptr(objMat));
+		glDrawArraysInstanced(GL_TRIANGLES, 0, vertices.size(), locations.size());
 	}
 
 	void drawGUI() {
 		ImGui::Begin(name.c_str());
+		ImGui::Checkbox("Render", &render);
+		if (render) {
+			glm::vec3 tempVec3;
+			glm::vec4 tempVec4;
+			float tempFloat;
+			bool tempBool;
 
-		ImGui::Text("Material:");
-		ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
-		ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
-		ImGui::ColorEdit3("Specular", &colorSpecular[0]);
-		ImGui::SliderFloat("Specular Strength", &specularStrength, 0, 2);
-		ImGui::SliderFloat("Normal Strength", &normalStrength, 0.1f, 1.05f, "%.3f", .5f);
-		ImGui::DragFloat2("Tiling", &tilingOffset.x, 0.01f);
-		ImGui::DragFloat2("Offset", &tilingOffset.z, 0.01f);
-		ImGui::SliderFloat("Alpha cutout", &alphaCutout, -0.001f, 1.001f, "%.3f", .5f);
-		ImGui::Spacing();
-		ImGui::Text("Transforms:");
+			ImGui::Text("Material:");
 
-		int locationsCount = locations.size();
-		ImGui::DragInt("Instances count", &locationsCount, .1f);
-		for (size_t i = 0; i < locations.size(); i++)
-		{
+			tempVec3 = colorAmbient;
+			ImGui::ColorEdit3("Ambient", &colorAmbient[0]);
+			if (!modifiedParameters && tempVec3 != colorAmbient)
+				modifiedParameters = true;
+
+			tempVec3 = colorDiffuse;
+			ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
+			if (!modifiedParameters && tempVec3 != colorDiffuse)
+				modifiedParameters = true;
+
+			tempVec3 = colorSpecular;
+			ImGui::ColorEdit3("Specular", &colorSpecular[0]);
+			if (!modifiedParameters && tempVec3 != colorSpecular)
+				modifiedParameters = true;
+
+			tempFloat = specularStrength;
+			ImGui::SliderFloat("Specular Strength", &specularStrength, 0, 2);
+			if (!modifiedParameters && tempFloat != specularStrength)
+				modifiedParameters = true;
+
+			tempFloat = normalStrength;
+			ImGui::SliderFloat("Normal Strength", &normalStrength, 0.1f, 1.05f, "%.3f", .5f);
+			if (!modifiedParameters && tempFloat != normalStrength)
+				modifiedParameters = true;
+
+			tempVec4 = tilingOffset;
+			ImGui::DragFloat2("Tiling", &tilingOffset.x, 0.01f);
+			ImGui::DragFloat2("Offset", &tilingOffset.z, 0.01f);
+			if (!modifiedParameters && tempVec4 != tilingOffset)
+				modifiedParameters = true;
+
+			tempFloat = alphaCutout;
+			ImGui::SliderFloat("Alpha cutout", &alphaCutout, -0.001f, 1.001f, "%.3f", .5f);
+			if (!modifiedParameters && tempFloat != alphaCutout)
+				modifiedParameters = true;
+			tempBool = inverseAlphaCutout;
+			ImGui::Checkbox("Invert Alpha cutout", &inverseAlphaCutout);
+			if (!modifiedParameters && tempBool != inverseAlphaCutout)
+				modifiedParameters = true;
+
 			ImGui::Spacing();
-			std::string tempString = std::to_string(i + 1);
-			tempString += " Position";
-			ImGui::DragFloat3(tempString.c_str(), &locations[i].position.x, 0.01f);
-			tempString = std::to_string(i + 1);
-			tempString += " Rotation";
-			ImGui::DragFloat3(tempString.c_str(), &locations[i].rotation.x);
-			tempString = std::to_string(i + 1);
-			tempString += " Scale";
-			ImGui::DragFloat3(tempString.c_str(), &locations[i].scale.x, 0.01f);
-		}
-		if (locationsCount < 0)
-			locationsCount = 0;
-		if (instancesEditable && locationsCount != locations.size()) {
-			while (locationsCount > locations.size()) {
-				locations.push_back(Location());
+			ImGui::Spacing();
+			ImGui::Text("Transforms:");
+
+			int locationsCount = locations.size();
+			ImGui::DragInt("Instances count", &locationsCount, .1f);
+			for (size_t i = 0; i < locations.size(); i++)
+			{
+				Location lastLoc = locations[i];
+				ImGui::Spacing();
+				std::string tempString = std::to_string(i + 1);
+				tempString += " Position";
+				ImGui::DragFloat3(tempString.c_str(), &locations[i].position.x, 0.01f);
+				tempString = std::to_string(i + 1);
+				tempString += " Rotation";
+				ImGui::DragFloat3(tempString.c_str(), &locations[i].rotation.x);
+				tempString = std::to_string(i + 1);
+				tempString += " Scale";
+				ImGui::DragFloat3(tempString.c_str(), &locations[i].scale.x, 0.01f);
+				if (!modifiedLocations && lastLoc != locations[i]) {
+					modifiedLocations = true;
+				}
 			}
-			while (locationsCount < locations.size()) {
-				locations.pop_back();
-			}
+			//if (locationsCount < 0)
+			//	locationsCount = 0;
+			//if (locationsCount != locations.size()) {
+			//	while (locationsCount > locations.size()) {
+			//		locations.push_back(Location());
+			//	}
+			//	while (locationsCount < locations.size()) {
+			//		locations.pop_back();
+			//	}
+			//}
 		}
 		ImGui::End();
 	}
@@ -828,6 +985,7 @@ public:
 
 Skybox skybox;
 std::map<std::string, Object> objects;
+std::map<std::string, Object> objectsTransparent;
 std::vector<Path> carPaths;
 
 void ResetPanV() {
@@ -863,20 +1021,34 @@ void GLinit(int width, int height) {
 	/////////////////////////////////////////////////////////
 	{
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
-		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency.png";
+		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency_alt.png";
 		objects["Camaro"].alphaCutout = .9f;
 		//objects["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
 		objects["Camaro"].specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
 		objects["Camaro"].emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
 		objects["Camaro"].preScaler = 0.02f;
+
+		objectsTransparent["Camaro"] = Object("Camaro windows", "resources/models/Camaro.3dobj");
+		objectsTransparent["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency_alt.png";
+		objectsTransparent["Camaro"].alphaCutout = .9f;
+		//objectsTransparent["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
+		objectsTransparent["Camaro"].specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
+		objectsTransparent["Camaro"].emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
+		objectsTransparent["Camaro"].preScaler = 0.02f;
+		objectsTransparent["Camaro"].inverseAlphaCutout = true;
 		for (size_t i = 0; i < 5; i++)
 		{
 			objects["Camaro"].locations.push_back(Location());
+			objectsTransparent["Camaro"].locations.push_back(Location());
 			carPaths.push_back(Path());
 			carPaths[i].positionCurrent = carPaths[i].NextPosition();
+			objects["Camaro"].locations[i].position = carPaths[i].positionCurrent;
+			objects["Camaro"].locations[i].rotation = carPaths[i].rotation;
+			objectsTransparent["Camaro"].locations[i].position = carPaths[i].positionCurrent;
+			objectsTransparent["Camaro"].locations[i].rotation = carPaths[i].rotation;
 		}
-		objects["Camaro"].instancesEditable = false;
 		objects["Camaro"].setupObject();
+		objectsTransparent["Camaro"].setupObject();
 
 	}
 	{
@@ -889,6 +1061,7 @@ void GLinit(int width, int height) {
 		objects["Bush"].alphaCutout = .001f;
 		//objects["Bush"].normal.path = "resources/textures/Bush/Bush_Normal.png";
 		objects["Bush"].specular.path = "resources/textures/Bush/Bush_SpecularGlossines.png";
+		objects["Bush"].colorSpecular = {0,0,0};
 		objects["Bush"].preScaler = 1.f;
 		const int scale = 14;
 		const int repeatX = 8;
@@ -920,7 +1093,7 @@ void GLinit(int width, int height) {
 		objects["Lampara"] = Object("Lampara", "resources/models/Lampara.3dobj");
 		objects["Lampara"].albedo.path = "resources/textures/Lampara/Lampara_Diffuse.png";
 		objects["Lampara"].emissive.path = "resources/textures/Lampara/Lampara_Emissive.png";
-		objects["Lampara"].preScaler = 1.f;
+		objects["Lampara"].preScaler = 1.5f;
 		PointLight tempLight;
 		const int scale = 14;
 		const int repeatX = 8;
@@ -930,8 +1103,8 @@ void GLinit(int width, int height) {
 		for (size_t i = 0; i < repeatX; i++)
 		{
 			posY = 10;
-			objects["Lampara"].locations.push_back(Location({ posX, 0, posY }));
-			tempLight.position = { posX, 5, posY };
+			objects["Lampara"].locations.push_back(Location({ posX, -0.44f, posY }));
+			tempLight.position = { posX, 6, posY };
 			lights.push_back(tempLight);
 			posX += scale;
 		}
@@ -940,8 +1113,8 @@ void GLinit(int width, int height) {
 		for (size_t i = 0; i < repeatX; i++)
 		{
 			posY = -10;
-			objects["Lampara"].locations.push_back(Location({ posX, 0, posY }));
-			tempLight.position = { posX, 5, posY };
+			objects["Lampara"].locations.push_back(Location({ posX, -0.44f, posY }));
+			tempLight.position = { posX, 6, posY };
 			lights.push_back(tempLight);
 			posX += scale;
 		}
@@ -999,7 +1172,10 @@ void GLrender(float dt) {
 		carPaths[i].UpdatePosition(dt);
 		objects["Camaro"].locations[i].position = carPaths[i].positionCurrent;
 		objects["Camaro"].locations[i].rotation = carPaths[i].rotation;
+		objectsTransparent["Camaro"].locations[i].position = carPaths[i].positionCurrent;
+		objectsTransparent["Camaro"].locations[i].rotation = carPaths[i].rotation;
 	}
+	objects["Camaro"].modifiedLocations = true;
 
 	if (RV::FixedView) {
 		RV::FOV = glm::radians(26.f);
@@ -1049,15 +1225,27 @@ void GLrender(float dt) {
 	{
 		Axis::drawAxis(lights.at(i).position, 0.01f);
 	}
+	for (std::map<std::string, Object>::iterator it = objects.begin(); it != objects.end(); ++it)
 	{
-		for (std::map<std::string, Object>::iterator it = objects.begin(); it != objects.end(); ++it)
-		{
-			it->second.drawObjects();
-		}
-
+		it->second.drawObjects();
 	}
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	for (std::map<std::string, Object>::iterator it = objectsTransparent.begin(); it != objectsTransparent.end(); ++it)
+	{
+		for (size_t i = 0; i < it->second.locations.size(); i++)
+		{
+			it->second.locations[i].cameraPosition = { RV::panv[0] , RV::panv[1] , RV::panv[2] };
+		}
+		std::sort(it->second.locations.begin(), it->second.locations.end());
+		//std::reverse(it->second.locations.begin(), it->second.locations.end());
+		it->second.modifiedLocations = true;
+		it->second.drawObjects();
+	}
+	glDisable(GL_BLEND);
 
+	lightsChanged = false;
 
 	ImGui::Render();
 }
@@ -1075,6 +1263,23 @@ void GUI() {
 		{
 			ImGui::Text("Camera:");
 
+			bool lastUpdate = carPaths[0].update;
+			ImGui::Checkbox("Move cars", &lastUpdate);
+			if (lastUpdate &= carPaths[0].update) {
+				for (size_t i = 0; i < carPaths.size(); i++)
+				{
+					carPaths[i].update = lastUpdate;
+				}
+			}
+
+			float lastSpeed = carPaths[0].speed;
+			ImGui::DragFloat("Car speed", &lastSpeed, 0.01f);
+			if (lastSpeed != carPaths[0].speed) {
+				for (size_t i = 0; i < carPaths.size(); i++)
+				{
+					carPaths[i].speed = lastSpeed;
+				}
+			}
 			ImGui::Checkbox("Cockpit view", &RV::FixedView);
 			if (RV::FixedView) {
 				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
@@ -1099,10 +1304,14 @@ void GUI() {
 			ImGui::ColorEdit3("Tint", &skybox.tint[0], 0.01f);
 			ImGui::Spacing();
 			ImGui::Text("Main light");
+			DirectionalLight lastLightMain = mainLight;
 			ImGui::DragFloat3("Direction", &mainLight.direction[0], .01f);
 			ImGui::ColorEdit3("Color", &mainLight.color[0], .01f);
 			ImGui::DragFloat("Strength", &mainLight.strength, .01f);
 			mainLight.direction = glm::normalize(mainLight.direction);
+			if (!lightsChanged && lastLightMain != mainLight) {
+				lightsChanged = true;
+			}
 			ImGui::Spacing();
 			ImGui::Text("Point lights");
 			int previousLightSize = lights.size();
@@ -1110,6 +1319,7 @@ void GUI() {
 			ImGui::SliderInt("Count", &newLightsSize, 0, MAX_LIGHTS);
 			for (size_t i = 0; i < lights.size(); i++)
 			{
+				PointLight lastLight = lights.at(i);
 				ImGui::Spacing();
 				std::string name = std::to_string(i);
 				name += " position";
@@ -1120,8 +1330,12 @@ void GUI() {
 				name = std::to_string(i);
 				name += " strength";
 				ImGui::DragFloat(name.c_str(), &lights.at(i).strength, .01f);
+				if (!lightsChanged && lastLight != lights.at(i)) {
+					lightsChanged = true;
+				}
 			}
 			if (previousLightSize != newLightsSize) {
+				lightsChanged = true;
 				if (previousLightSize > newLightsSize) {
 					while (previousLightSize != newLightsSize) {
 						lights.pop_back();
@@ -1143,6 +1357,10 @@ void GUI() {
 	ImGui::End();
 
 	for (std::map<std::string, Object>::iterator it = objects.begin(); it != objects.end(); ++it)
+	{
+		it->second.drawGUI();
+	}
+	for (std::map<std::string, Object>::iterator it = objectsTransparent.begin(); it != objectsTransparent.end(); ++it)
 	{
 		it->second.drawGUI();
 	}
