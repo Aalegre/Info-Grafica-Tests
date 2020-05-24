@@ -48,7 +48,7 @@ namespace RenderVars {
 	glm::vec3 FixedViewOffset = { 0,-1.75, -0.78 };
 	glm::vec2 FixedViewRotation = { 0,0};
 
-	glm::vec3 FixedMirrorOffset = { 0,0.78, 0 };
+	glm::vec3 FixedMirrorOffset = { 0,1.79, 0 };
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -635,7 +635,7 @@ public:
 	bool render = true;
 	bool modifiedParameters = true;
 	glm::vec3 colorAmbient = { 0,0,0 };
-	glm::vec3 colorDiffuse = { 1,1,1 };
+	glm::vec4 colorDiffuse = { 1,1,1,1 };
 	glm::vec3 colorSpecular = { 1,1,1 };
 	glm::vec4 tilingOffset = { 1,1,0,0 };
 	glm::float32 specularStrength = 1;
@@ -796,7 +796,7 @@ public:
 
 			if (modifiedParameters) {
 				glUniform4f(glGetUniformLocation(program, "_color_ambient"), colorAmbient.x, colorAmbient.y, colorAmbient.z, 0);
-				glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, 0);
+				glUniform4f(glGetUniformLocation(program, "_color_diffuse"), colorDiffuse.x, colorDiffuse.y, colorDiffuse.z, colorDiffuse.w);
 				glUniform4f(glGetUniformLocation(program, "_color_specular"), colorSpecular.x, colorSpecular.y, colorSpecular.z, 0);
 				glUniform4f(glGetUniformLocation(program, "_tilingOffset"), tilingOffset.x, tilingOffset.y, tilingOffset.z, tilingOffset.w);
 				glUniform1f(glGetUniformLocation(program, "_specular_strength"), specularStrength);
@@ -899,9 +899,9 @@ public:
 			if (!modifiedParameters && tempVec3 != colorAmbient)
 				modifiedParameters = true;
 
-			tempVec3 = colorDiffuse;
-			ImGui::ColorEdit3("Diffuse", &colorDiffuse[0]);
-			if (!modifiedParameters && tempVec3 != colorDiffuse)
+			tempVec4 = colorDiffuse;
+			ImGui::ColorEdit4("Diffuse", &colorDiffuse[0]);
+			if (!modifiedParameters && tempVec4 != colorDiffuse)
 				modifiedParameters = true;
 
 			tempVec3 = colorSpecular;
@@ -1024,7 +1024,7 @@ void GLinit(int width, int height) {
 
 		objects["Mirror"] = Object("Mirror", "resources/models/Mirror.3dobj");
 		objects["Mirror"].locations.push_back(Location());
-		objects["Mirror"].preScaler = 0.02f;
+		objects["Mirror"].preScaler = 0.01f;
 		objects["Mirror"].setupObject();
 
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
@@ -1037,6 +1037,7 @@ void GLinit(int width, int height) {
 
 		objectsTransparent["Camaro"] = Object("Camaro windows", "resources/models/Camaro.3dobj");
 		objectsTransparent["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency_alt.png";
+		objectsTransparent["Camaro"].colorDiffuse = { 1,1,1,.5f };
 		objectsTransparent["Camaro"].alphaCutout = .9f;
 		//objectsTransparent["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
 		objectsTransparent["Camaro"].specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
@@ -1186,6 +1187,7 @@ void GLrender(float dt) {
 
 	objects["Mirror"].locations[0].position = carPaths[0].positionCurrent + RV::FixedMirrorOffset;
 	objects["Mirror"].locations[0].rotation = carPaths[0].rotation;
+	objects["Mirror"].modifiedLocations = true;
 
 
 	if (RV::FixedView) {

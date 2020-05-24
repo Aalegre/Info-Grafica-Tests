@@ -115,6 +115,6 @@ vec4 finalColor =
 		+ _color_ambient
 		+ diffuse
 		+ specular;
-	finalColor.w = albedoColor.w;
+	finalColor.w = albedoColor.w * _color_diffuse.w;
 out_Color = finalColor;
 }
