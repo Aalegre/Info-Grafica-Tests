@@ -23,6 +23,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stb_image.h"
 #include <map>
+#include <glm\gtx\euler_angles.hpp>
 
 
 #pragma warning(disable:4996)
@@ -34,7 +35,7 @@ namespace ImGui {
 namespace Axis {
 	void setupAxis();
 	void cleanupAxis();
-	void drawAxis(glm::vec3 position_ = {0,0,0}, float scale_ = 1);
+	void drawAxis(glm::vec3 position_ = { 0,0,0 }, float scale_ = 1);
 }
 ////////////////
 
@@ -44,8 +45,10 @@ namespace RenderVars {
 	const float zNear = 0.001f;
 	const float zFar = 1000.f;
 	bool FixedView = false;
-	glm::vec3 FixedViewOffset = { 0,-1.75,0 };
+	glm::vec3 FixedViewOffset = { 0,-1.75, -0.78 };
 	glm::vec2 FixedViewRotation = { 0,0};
+
+	glm::vec3 FixedMirrorOffset = { 0,0.78, 0 };
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -575,14 +578,14 @@ struct Path {
 	glm::vec3 direcitonCurrent = { 0,0,0 };
 	glm::vec3 direcitonDesired = { 0,0,0 };
 
-	glm::vec3 rotation = {0,0,0};
+	glm::vec3 rotation = { 0,0,0 };
 
 	float speed = 1;
 	float nextPosMin = 1;
 	float nextPosMax = 2;
 	float nextPosTime = 0;
 	float timer = 0;
-	glm::vec3 max = {45, 0, 17.5f};
+	glm::vec3 max = { 45, 0, 17.5f };
 	glm::vec3 min = { -45, 0, -17.5f };
 	glm::vec3 NextPosition() {
 		glm::vec3 newPos = { 0,0,0 };
@@ -639,8 +642,6 @@ public:
 	glm::float32 normalStrength = 1;
 	bool inverseAlphaCutout = false;
 	glm::float32 alphaCutout = 0;
-
-
 
 	Texture albedo;
 	Texture normal;
@@ -701,11 +702,11 @@ public:
 		program = glCreateProgram();
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
-
-			albedo.Load();
-			normal.Load();
-			specular.Load();
-			emissive.Load();
+		
+		albedo.Load();
+		normal.Load();
+		specular.Load();
+		emissive.Load();
 
 
 		glBindAttribLocation(program, 0, "in_Position");
@@ -772,7 +773,7 @@ private:
 	}
 
 public:
-	Object(const std::string & name_ = "cube", const std::string & path_ = "resources/models/cube.3dobj") : name(name_), path(path_) {
+	Object(const std::string& name_ = "cube", const std::string& path_ = "resources/models/cube.3dobj") : name(name_), path(path_) {
 	}
 	~Object() {
 		cleanupObject();
@@ -1020,6 +1021,12 @@ void GLinit(int width, int height) {
 	// ...
 	/////////////////////////////////////////////////////////
 	{
+
+		objects["Mirror"] = Object("Mirror", "resources/models/Mirror.3dobj");
+		objects["Mirror"].locations.push_back(Location());
+		objects["Mirror"].preScaler = 0.02f;
+		objects["Mirror"].setupObject();
+
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
 		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency_alt.png";
 		objects["Camaro"].alphaCutout = .9f;
@@ -1177,15 +1184,21 @@ void GLrender(float dt) {
 	}
 	objects["Camaro"].modifiedLocations = true;
 
+	objects["Mirror"].locations[0].position = carPaths[0].positionCurrent + RV::FixedMirrorOffset;
+	objects["Mirror"].locations[0].rotation = carPaths[0].rotation;
+
+
 	if (RV::FixedView) {
 		RV::FOV = glm::radians(26.f);
-		RV::panv[0] = -carPaths[0].positionCurrent.x + RV::FixedViewOffset.x;
-		RV::panv[1] = -carPaths[0].positionCurrent.y + RV::FixedViewOffset.y;
-		RV::panv[2] = -carPaths[0].positionCurrent.z + RV::FixedViewOffset.z;
+		RV::panv[0] = -carPaths[0].positionCurrent.x;
+		RV::panv[1] = -carPaths[0].positionCurrent.y;
+		RV::panv[2] = -carPaths[0].positionCurrent.z;
 
 		RV::rota[0] = glm::radians(-carPaths[0].rotation.y + 180);
 		RV::rota[1] = 0;
 		RV::_modelView = glm::mat4(1.f);
+
+		RV::_modelView = glm::translate(RV::_modelView, RV::FixedViewOffset);
 
 		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1],
 			glm::vec3(1.f, 0.f, 0.f));
@@ -1284,6 +1297,8 @@ void GUI() {
 			if (RV::FixedView) {
 				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
 				ImGui::DragFloat2("Rot", &RV::FixedViewRotation[0], 0.01f);
+
+				ImGui::DragFloat3("Mirror Offset", &RV::FixedMirrorOffset[0], 0.01f);
 			}
 			else {
 				float currentFov = glm::degrees(RV::FOV);
