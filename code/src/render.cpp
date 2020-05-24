@@ -44,8 +44,10 @@ namespace RenderVars {
 	const float zNear = 0.001f;
 	const float zFar = 1000.f;
 	bool FixedView = false;
-	glm::vec3 FixedViewOffset = { 0,-1.75,0 };
+	glm::vec3 FixedViewOffset = { 0,-1.75, -0.78 };
 	glm::vec2 FixedViewRotation = { 0,0};
+
+	glm::vec3 FixedMirrorOffset = { 0,0.78, 0 };
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -633,11 +635,10 @@ public:
 		glAttachShader(program, shaders[0]);
 		glAttachShader(program, shaders[1]);
 		
-		/*
 		albedo.Load();
 		normal.Load();
 		specular.Load();
-		emissive.Load();*/
+		emissive.Load();
 
 
 		glBindAttribLocation(program, 0, "in_Position");
@@ -1007,15 +1008,21 @@ void GLrender(float dt) {
 		objects["Camaro"].locations[i].rotation = carPaths[i].rotation;
 	}
 
+	objects["Mirror"].locations[0].position = carPaths[0].positionCurrent + RV::FixedMirrorOffset;
+	objects["Mirror"].locations[0].rotation = carPaths[0].rotation;
+
+
 	if (RV::FixedView) {
 		RV::FOV = glm::radians(26.f);
-		RV::panv[0] = -carPaths[0].positionCurrent.x + RV::FixedViewOffset.x;
-		RV::panv[1] = -carPaths[0].positionCurrent.y + RV::FixedViewOffset.y;
-		RV::panv[2] = -carPaths[0].positionCurrent.z + RV::FixedViewOffset.z;
+		RV::panv[0] = -carPaths[0].positionCurrent.x;
+		RV::panv[1] = -carPaths[0].positionCurrent.y;
+		RV::panv[2] = -carPaths[0].positionCurrent.z;
 
 		RV::rota[0] = glm::radians(-carPaths[0].rotation.y + 180);
 		RV::rota[1] = 0;
 		RV::_modelView = glm::mat4(1.f);
+
+		RV::_modelView = glm::translate(RV::_modelView, RV::FixedViewOffset);
 
 		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1],
 			glm::vec3(1.f, 0.f, 0.f));
@@ -1085,6 +1092,8 @@ void GUI() {
 			if (RV::FixedView) {
 				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
 				ImGui::DragFloat2("Rot", &RV::FixedViewRotation[0], 0.01f);
+
+				ImGui::DragFloat3("Mirror Offset", &RV::FixedMirrorOffset[0], 0.01f);
 			}
 			else {
 				float currentFov = glm::degrees(RV::FOV);
