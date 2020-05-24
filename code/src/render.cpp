@@ -44,8 +44,8 @@ namespace RenderVars {
 	const float zNear = 0.001f;
 	const float zFar = 1000.f;
 	bool FixedView = false;
-	glm::vec3 FixedViewOffset = { -1,-2,-1 };
-	glm::vec2 FixedViewRotation = { 0,0 };
+	glm::vec3 FixedViewOffset = { 0,-1.75,0 };
+	glm::vec2 FixedViewRotation = { 0,0};
 
 	glm::mat4 _projection;
 	glm::mat4 _modelView;
@@ -999,8 +999,6 @@ void GLcleanup() {
 void GLrender(float dt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	RV::UpdateProjection();
-
 
 	for (size_t i = 0; i < carPaths.size(); i++)
 	{
@@ -1009,46 +1007,50 @@ void GLrender(float dt) {
 		objects["Camaro"].locations[i].rotation = carPaths[i].rotation;
 	}
 
-
 	if (RV::FixedView) {
+		RV::FOV = glm::radians(26.f);
+		RV::panv[0] = -carPaths[0].positionCurrent.x + RV::FixedViewOffset.x;
+		RV::panv[1] = -carPaths[0].positionCurrent.y + RV::FixedViewOffset.y;
+		RV::panv[2] = -carPaths[0].positionCurrent.z + RV::FixedViewOffset.z;
 
+		RV::rota[0] = glm::radians(-carPaths[0].rotation.y + 180);
+		RV::rota[1] = 0;
 		RV::_modelView = glm::mat4(1.f);
-		RV::_modelView = glm::translate(RV::_modelView, RV::FixedViewOffset - carPaths[0].positionCurrent);
 
-		/*RV::panv[0] = RV::FixedViewOffset.x - carPaths[0].positionCurrent.x;
-		RV::panv[1] = RV::FixedViewOffset.y - carPaths[0].positionCurrent.y;
-		RV::panv[2] = RV::FixedViewOffset.z - carPaths[0].positionCurrent.z;*/
+		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1],
+			glm::vec3(1.f, 0.f, 0.f));
+		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0],
+			glm::vec3(0.f, 1.f, 0.f));
+		RV::_modelView = glm::translate(RV::_modelView,
+			glm::vec3(RV::panv[0], RV::panv[1], RV::panv[2]));
 
-		//glm::mat4 rot = glm::eulerAngleYXZ(carPaths[0].positionCurrent.x, carPaths[0].positionCurrent.y, carPaths[0].positionCurrent.z);
-
-		RV::_modelView = glm::rotate(RV::_modelView, glm::radians(carPaths[0].rotation.y), glm::vec3(0.f, 1.f, 0.f));
-	
 		RV::_MVP = RV::_projection * RV::_modelView;
 
 		RV::_view = glm::mat4(glm::mat3(RV::_modelView));
-		//RV::_view = glm::mat4(glm::mat3(RV::_MVP));
-
 	}
 	else {
 		RV::_modelView = glm::mat4(1.f);
 
-		RV::_modelView = glm::translate(RV::_modelView,	glm::vec3(RV::panv[0], RV::panv[1], RV::panv[2]));
-
-		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1], glm::vec3(1.f, 0.f, 0.f));
-		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0], glm::vec3(0.f, 1.f, 0.f));
+		RV::_modelView = glm::translate(RV::_modelView,
+			glm::vec3(RV::panv[0], RV::panv[1], RV::panv[2]));
+		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1],
+			glm::vec3(1.f, 0.f, 0.f));
+		RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0],
+			glm::vec3(0.f, 1.f, 0.f));
 
 		RV::_MVP = RV::_projection * RV::_modelView;
 
 		RV::_view = glm::mat4(glm::mat3(RV::_modelView));
 	}
+
+	RV::UpdateProjection();
 
 
 	glDepthMask(GL_FALSE);
 	skybox.render();
 	glDepthMask(GL_TRUE);
 
-
-	Axis::drawAxis({ 0,0,0 });
+	Axis::drawAxis({0,0,0});
 	for (size_t i = 0; i < lights.size(); i++)
 	{
 		Axis::drawAxis(lights.at(i).position, 0.01f);
@@ -1079,17 +1081,17 @@ void GUI() {
 		{
 			ImGui::Text("Camera:");
 
-			ImGui::Text("FOV = %.3f", glm::degrees(RV::FOV));
-			float currentFov = glm::degrees(RV::FOV);
-			ImGui::SliderFloat("FOV", &currentFov, 1, 179);
-			if (currentFov != glm::degrees(RV::FOV)) {
-				RV::FOV = glm::radians(currentFov);
-			}
 			ImGui::Checkbox("Cockpit view", &RV::FixedView);
 			if (RV::FixedView) {
 				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
 				ImGui::DragFloat2("Rot", &RV::FixedViewRotation[0], 0.01f);
-
+			}
+			else {
+				float currentFov = glm::degrees(RV::FOV);
+				ImGui::SliderFloat("FOV", &currentFov, 1, 179);
+				if (currentFov != glm::degrees(RV::FOV)) {
+					RV::FOV = glm::radians(currentFov);
+				}
 			}
 			if (ImGui::Button("reset transform")) {
 				ResetPanV();
