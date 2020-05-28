@@ -44,6 +44,9 @@ namespace RenderVars {
 	float FOV = glm::radians(65.f);
 	const float zNear = 0.001f;
 	const float zFar = 1000.f;
+	int width;
+	int height;
+
 	bool FixedView = false;
 	glm::vec3 FixedViewOffset = { 0,-1.75, -0.78 };
 	glm::vec2 FixedViewRotation = { 0,0};
@@ -79,6 +82,9 @@ namespace RenderVars {
 namespace RV = RenderVars;
 
 void GLResize(int width, int height) {
+	RV::width = width;
+	RV::height = height;
+
 	glViewport(0, 0, width, height);
 	if (height != 0) RV::_projection = glm::perspective(RV::FOV, (float)width / (float)height, RV::zNear, RV::zFar);
 	else RV::_projection = glm::perspective(RV::FOV, 0.f, RV::zNear, RV::zFar);
@@ -506,6 +512,7 @@ struct PointLight {
 		return !(*this == light_);
 	}
 };
+
 struct DirectionalLight {
 	glm::vec3 color = { 1, 1, 1 };
 	glm::vec3 direction = { 0,1,0 };
@@ -989,6 +996,26 @@ std::map<std::string, Object> objects;
 std::map<std::string, Object> objectsTransparent;
 std::vector<Path> carPaths;
 
+GLuint fbo, fbo_tex;
+
+void setupFBO() {
+	glGenFramebuffers(1, &fbo);
+	glGenTextures(1, &fbo_tex);
+	glBindTexture(GL_TEXTURE_2D, fbo_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 800, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo_tex, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 void ResetPanV() {
 	RV::panv[0] = RV::initial_panv[0];
 	RV::panv[1] = RV::initial_panv[1];
@@ -1000,6 +1027,8 @@ void ResetPanV() {
 }
 
 void GLinit(int width, int height) {
+	RV::width = width;
+	RV::height = height;
 	srand(time(NULL));
 	glViewport(0, 0, width, height);
 	glClearColor(0.2f, 0.2f, 0.2f, 1.f);
@@ -1014,18 +1043,20 @@ void GLinit(int width, int height) {
 	Axis::setupAxis();
 	//Cube::setupCube();
 
+	setupFBO();
 	/////////////////////////////////////////////////////TODO
 	// Do your init code here
 	// ...
 	// ...
-	// ...
+	// ... 
 	/////////////////////////////////////////////////////////
 	{
-
 		objects["Mirror"] = Object("Mirror", "resources/models/Mirror.3dobj");
 		objects["Mirror"].locations.push_back(Location());
 		objects["Mirror"].preScaler = 0.01f;
 		objects["Mirror"].setupObject();
+		objects["Mirror"].emissive.texture = fbo_tex;
+
 
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
 		objects["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency_alt.png";
@@ -1170,11 +1201,7 @@ void GLcleanup() {
 	objects.clear();
 }
 
-
-void GLrender(float dt) {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
+void UpdateScene(float dt) {
 	for (size_t i = 0; i < carPaths.size(); i++)
 	{
 		carPaths[i].UpdatePosition(dt);
@@ -1229,13 +1256,14 @@ void GLrender(float dt) {
 	}
 
 	RV::UpdateProjection();
+}
 
-
+void RenderScene() {
 	glDepthMask(GL_FALSE);
 	skybox.render();
 	glDepthMask(GL_TRUE);
 
-	Axis::drawAxis({0,0,0});
+	Axis::drawAxis({ 0,0,0 });
 	for (size_t i = 0; i < lights.size(); i++)
 	{
 		Axis::drawAxis(lights.at(i).position, 0.01f);
@@ -1263,10 +1291,74 @@ void GLrender(float dt) {
 	glDepthMask(GL_TRUE);
 
 	lightsChanged = false;
-
-	ImGui::Render();
 }
 
+void drawMirrorFBOTex() {
+	//Backup
+	glm::mat4 t_mvp = RV::_MVP;
+	glm::mat4 t_mv = RV::_modelView;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+	
+	//glClearColor(1.f, 1.f, 1.f, 1.f);
+	glViewport(0, 0, 800, 800);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+
+	
+	/*RV::_modelView = glm::mat4(1.f);
+	RV::_modelView = glm::translate(RV::_modelView, objects["Mirror"].locations[0].position + RV::FixedViewOffset);
+	RV::rota[0] = glm::radians(-carPaths[0].rotation.y);
+	RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0], glm::vec3(0.f, 1.f, 0.f));*/
+
+	//
+
+	RV::FOV = glm::radians(26.f);
+	RV::panv[0] = -carPaths[0].positionCurrent.x;
+	RV::panv[1] = -carPaths[0].positionCurrent.y;
+	RV::panv[2] = -carPaths[0].positionCurrent.z;
+
+	RV::rota[0] = glm::radians(-carPaths[0].rotation.y );
+	RV::rota[1] = 0;
+	RV::_modelView = glm::mat4(1.f);
+
+	RV::_modelView = glm::translate(RV::_modelView, RV::FixedViewOffset);
+
+	RV::_modelView = glm::rotate(RV::_modelView, RV::rota[1],
+		glm::vec3(1.f, 0.f, 0.f));
+	RV::_modelView = glm::rotate(RV::_modelView, RV::rota[0],
+		glm::vec3(0.f, 1.f, 0.f));
+	RV::_modelView = glm::translate(RV::_modelView,
+		glm::vec3(RV::panv[0], RV::panv[1], RV::panv[2]));
+
+	RV::_MVP = RV::_projection * RV::_modelView;
+
+	RV::_view = glm::mat4(glm::mat3(RV::_modelView));
+
+
+	RenderScene();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+
+	//render
+	RV::_MVP = t_mvp;
+	RV::_modelView = t_mv;
+	glViewport(0, 0, RV::width, RV::height);
+	
+}
+
+void GLrender(float dt) {
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	UpdateScene(dt);
+
+	drawMirrorFBOTex();
+
+	RenderScene();
+	
+	ImGui::Render();
+}
 
 void GUI() {
 	bool show = true;
