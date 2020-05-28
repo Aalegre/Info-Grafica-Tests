@@ -1245,6 +1245,7 @@ void GLrender(float dt) {
 		it->second.drawObjects();
 	}
 
+	glDepthMask(GL_FALSE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	for (std::map<std::string, Object>::iterator it = objectsTransparent.begin(); it != objectsTransparent.end(); ++it)
@@ -1259,6 +1260,7 @@ void GLrender(float dt) {
 		it->second.drawObjects();
 	}
 	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
 
 	lightsChanged = false;
 
@@ -1280,7 +1282,7 @@ void GUI() {
 
 			bool lastUpdate = carPaths[0].update;
 			ImGui::Checkbox("Move cars", &lastUpdate);
-			if (lastUpdate &= carPaths[0].update) {
+			if (lastUpdate != carPaths[0].update) {
 				for (size_t i = 0; i < carPaths.size(); i++)
 				{
 					carPaths[i].update = lastUpdate;
