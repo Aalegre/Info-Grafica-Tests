@@ -1046,6 +1046,8 @@ void ResetPanV() {
 	RV::FOV = RV::Initial_FOV;
 }
 
+float windowCutout = .9f;
+
 void GLinit(int width, int height) {
 	RV::width = width;
 	RV::height = height;
@@ -1091,7 +1093,7 @@ void GLinit(int width, int height) {
 		objectsTransparent["Camaro"] = Object("Camaro windows", "resources/models/Camaro.3dobj");
 		objectsTransparent["Camaro"].albedo.path = "resources/textures/Camaro/Camaro_AlbedoTransparency_alt.png";
 		objectsTransparent["Camaro"].colorDiffuse = { 1,1,1,.5f };
-		objectsTransparent["Camaro"].alphaCutout = .9f;
+		objectsTransparent["Camaro"].alphaCutout = windowCutout;
 		//objectsTransparent["Camaro"].normal.path = "resources/textures/Camaro/Camaro_Normal_xs.png";
 		objectsTransparent["Camaro"].specular.path = "resources/textures/Camaro/Camaro_SpecularGlossiness.png";
 		objectsTransparent["Camaro"].emissive.path = "resources/textures/Camaro/Camaro_Emissive_md.png";
@@ -1316,9 +1318,7 @@ void RenderScene() {
 	glDepthMask(GL_FALSE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	float lastCutout = objectsTransparent["Camaro"].alphaCutout;
 	if (RV::StencilRendering) {
-		objectsTransparent["Camaro"].alphaCutout = 2;
 		objectsTransparent["Camaro"].modifiedParameters = true;
 	}
 	for (std::map<std::string, Object>::iterator it = objectsTransparent.begin(); it != objectsTransparent.end(); ++it)
@@ -1335,7 +1335,6 @@ void RenderScene() {
 	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
 	if (RV::StencilRendering) {
-		objectsTransparent["Camaro"].alphaCutout = lastCutout;
 		objectsTransparent["Camaro"].modifiedParameters = true;
 		glDisable(GL_STENCIL_TEST);
 	}
@@ -1464,10 +1463,12 @@ void GUI() {
 			}
 			if (lastFixed != RV::FixedView) {
 				if (RV::FixedView) {
+					objectsTransparent["Camaro"].alphaCutout = 2;
 					objects["Mirror"].render = true;
 					RV::StencilRendering = true;
 				}else
 				{
+					objectsTransparent["Camaro"].alphaCutout = windowCutout;
 					objects["Mirror"].render = false;
 					RV::StencilRendering = false;
 				}
