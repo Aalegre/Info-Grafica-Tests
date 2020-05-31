@@ -407,12 +407,15 @@ public:
 			"resources/textures/River_Skybox/back.jpg",
 		};
 		for (GLuint i = 0; i < textures_faces.size(); i++) {
+			std::cout << "Loading texture: " << textures_faces[i] << std::endl;
 			data = stbi_load(textures_faces[i].c_str(), &width, &height, &nchannels, 0);
+			std::cout << "		size:" << std::to_string(width) << "x" << std::to_string(height) << std::endl;
+			std::cout << "		channels: " << std::to_string(nchannels) << std::endl;
 			if (data == NULL) {
-				fprintf(stderr, "Error loading image %s", textures_faces[i].c_str());
+				std::cout << "		Failed to load texture" << std::endl;
 				exit(1);
 			}
-			printf("%d %d %d\n", width, height, nchannels);
+			std::cout << "		Texture loaded" << std::endl;
 			unsigned int mode = nchannels == 3 ? GL_RGB : GL_RGBA;
 			glTexImage2D(
 				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -492,13 +495,13 @@ struct Texture {
 				//glGenerateMipmap(GL_TEXTURE_2D);
 				break;
 			}
+			std::cout << "		Texture loaded" << std::endl;
 		}
 		else
 		{
 			std::cout << "		Failed to load texture" << std::endl;
 		}
 		stbi_image_free(data);
-		std::cout << "		Texture loaded" << std::endl;
 	}
 };
 
@@ -1310,6 +1313,7 @@ void RenderScene() {
 	float lastCutout = objectsTransparent["Camaro"].alphaCutout;
 	if (RV::StencilRendering) {
 		objectsTransparent["Camaro"].alphaCutout = 2;
+		objectsTransparent["Camaro"].modifiedParameters = true;
 	}
 	for (std::map<std::string, Object>::iterator it = objectsTransparent.begin(); it != objectsTransparent.end(); ++it)
 	{
@@ -1326,6 +1330,7 @@ void RenderScene() {
 	glDepthMask(GL_TRUE);
 	if (RV::StencilRendering) {
 		objectsTransparent["Camaro"].alphaCutout = lastCutout;
+		objectsTransparent["Camaro"].modifiedParameters = true;
 		glDisable(GL_STENCIL_TEST);
 	}
 
