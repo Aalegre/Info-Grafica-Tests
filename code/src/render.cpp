@@ -662,7 +662,12 @@ public:
 	Texture emissive;
 
 	void setupObject() {
+		std::cout << "Loading object: " << name << std::endl;
 		bool res = FileLoader::LoadOBJ(path.c_str(), vertices, uvs, normals);
+		std::cout << "Loaded model: " << path << std::endl;
+		std::cout << "		vertices: " << vertices.size() << std::endl;
+		std::cout << "		uvs: " << uvs.size() << std::endl;
+		std::cout << "		normals: " << normals.size() << std::endl;
 		computeTB();
 
 		glGenVertexArrays(1, &vao);
@@ -752,6 +757,7 @@ public:
 
 		glUseProgram(0);
 		glBindVertexArray(0);
+		std::cout << "	Loaded object: " << name << std::endl << std::endl;
 	}
 private:
 	void computeTB() {
