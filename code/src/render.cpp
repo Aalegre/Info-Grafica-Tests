@@ -26,6 +26,8 @@
 #include <glm\gtx\euler_angles.hpp>
 
 
+
+
 #pragma warning(disable:4996)
 
 ///////// fw decl
@@ -48,6 +50,7 @@ namespace RenderVars {
 	int height;
 
 	bool FixedView = false;
+	bool StencilRendering = false;
 	glm::vec3 FixedViewOffset = { 0,-1.75, -0.78 };
 	glm::vec2 FixedViewRotation = { 0,0};
 
@@ -1065,6 +1068,7 @@ void GLinit(int width, int height) {
 		objects["Mirror"].tilingOffset = { 1, -.4f, 0, 0.3f };
 		objects["Mirror"].setupObject();
 		objects["Mirror"].emissive.texture = fbo_tex;
+		objects["Mirror"].render = false;
 
 
 		objects["Camaro"] = Object("Camaro", "resources/models/Camaro.3dobj");
@@ -1269,7 +1273,7 @@ void UpdateScene(float dt) {
 	RV::UpdateProjection();
 }
 
-void RenderScene(std::string dontRender_ = "") {
+void RenderScene() {
 	glDepthMask(GL_FALSE);
 	skybox.render();
 	glDepthMask(GL_TRUE);
@@ -1279,15 +1283,34 @@ void RenderScene(std::string dontRender_ = "") {
 	{
 		Axis::drawAxis(lights.at(i).position, 0.01f);
 	}
+	bool lastRender = objects["Camaro"].render;
+	if (RV::StencilRendering) {
+		objects["Camaro"].render = false;
+	}
 	for (std::map<std::string, Object>::iterator it = objects.begin(); it != objects.end(); ++it)
 	{
-		if(it->first != dontRender_)
 		it->second.drawObjects();
 	}
+	if (RV::StencilRendering) {
+		objects["Camaro"].render = lastRender;
+		glEnable(GL_STENCIL_TEST);
+		glStencilFunc(GL_ALWAYS, 1, 0xFF);
+		glStencilOp(GL_KEEP, GL_REPLACE, GL_REPLACE);
+		glStencilMask(0xFF);
+		glClear(GL_STENCIL_BUFFER_BIT);
 
+		objects["Camaro"].drawObjects();
+
+		glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+		glStencilMask(0x00);
+	}
 	glDepthMask(GL_FALSE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	float lastCutout = objectsTransparent["Camaro"].alphaCutout;
+	if (RV::StencilRendering) {
+		objectsTransparent["Camaro"].alphaCutout = 2;
+	}
 	for (std::map<std::string, Object>::iterator it = objectsTransparent.begin(); it != objectsTransparent.end(); ++it)
 	{
 		for (size_t i = 0; i < it->second.locations.size(); i++)
@@ -1301,6 +1324,10 @@ void RenderScene(std::string dontRender_ = "") {
 	}
 	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
+	if (RV::StencilRendering) {
+		objectsTransparent["Camaro"].alphaCutout = lastCutout;
+		glDisable(GL_STENCIL_TEST);
+	}
 
 	lightsChanged = false;
 }
@@ -1343,8 +1370,9 @@ void drawMirrorFBOTex() {
 
 	RV::_view = glm::mat4(glm::mat3(RV::_modelView));
 
-
-	RenderScene("Mirror");
+	objects["Mirror"].render = false;
+	RenderScene();
+	objects["Mirror"].render = true;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 
@@ -1363,8 +1391,7 @@ void GLrender(float dt) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	UpdateScene(dt);
-
-	if (RV::FixedView) {
+	if (objects["Mirror"].render) {
 		drawMirrorFBOTex();
 	}
 
@@ -1403,6 +1430,7 @@ void GUI() {
 				}
 			}
 			bool lastFixed = RV::FixedView;
+			ImGui::Checkbox("Stencil rendering", &RV::StencilRendering);
 			ImGui::Checkbox("Cockpit view", &RV::FixedView);
 			if (RV::FixedView) {
 				ImGui::DragFloat3("Offset", &RV::FixedViewOffset[0], 0.01f);
@@ -1419,9 +1447,19 @@ void GUI() {
 				if (currentFov != glm::degrees(RV::FOV)) {
 					RV::FOV = glm::radians(currentFov);
 				}
+				if (ImGui::Button("reset transform")) {
+					ResetPanV();
+				}
 			}
-			if (ImGui::Button("reset transform")) {
-				ResetPanV();
+			if (lastFixed != RV::FixedView) {
+				if (RV::FixedView) {
+					objects["Mirror"].render = true;
+					RV::StencilRendering = true;
+				}else
+				{
+					objects["Mirror"].render = false;
+					RV::StencilRendering = false;
+				}
 			}
 		}
 		{
