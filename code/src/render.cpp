@@ -1003,7 +1003,7 @@ std::map<std::string, Object> objectsTransparent;
 std::vector<Path> carPaths;
 
 GLuint fbo, fbo_tex;
-int mirrorWidth = 512, mirrorHeight = 512;
+int mirrorWidth = 512, mirrorHeight = 256;
 
 void setupFBO() {
 	glGenFramebuffers(1, &fbo);
@@ -1068,7 +1068,7 @@ void GLinit(int width, int height) {
 		objects["Mirror"] = Object("Mirror", "resources/models/Mirror.3dobj");
 		objects["Mirror"].locations.push_back(Location());
 		objects["Mirror"].preScaler = 0.01f;
-		objects["Mirror"].tilingOffset = { 1, -.4f, 0, 0.3f };
+		objects["Mirror"].tilingOffset = { 1, -1, 0, 0 };
 		objects["Mirror"].setupObject();
 		objects["Mirror"].emissive.texture = fbo_tex;
 		objects["Mirror"].render = false;
@@ -1343,7 +1343,7 @@ void drawMirrorFBOTex() {
 	glm::mat4 t_mv = RV::_modelView;
 	glm::mat4 t_view = RV::_view;
 	glm::mat4 t_projection = RV::_projection;
-	float t_FOV = RV::FOV;
+	//float t_FOV = RV::FOV;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	
@@ -1352,7 +1352,7 @@ void drawMirrorFBOTex() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
-	RV::FOV = glm::radians(40.f);
+	//RV::FOV = glm::radians(26.f);
 	RV::panv[0] = -carPaths[0].positionCurrent.x;
 	RV::panv[1] = -carPaths[0].positionCurrent.y;
 	RV::panv[2] = -carPaths[0].positionCurrent.z;
@@ -1383,7 +1383,7 @@ void drawMirrorFBOTex() {
 
 
 	//render
-	RV::FOV = t_FOV;
+	//RV::FOV = t_FOV;
 	RV::_MVP = t_mvp;
 	RV::_modelView = t_mv;
 	RV::_view = t_view;

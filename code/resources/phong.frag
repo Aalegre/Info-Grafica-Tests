@@ -31,20 +31,21 @@ struct DirectionalLight{
     vec4 direction;
     vec4 color;
 	float strength;
-	vec4 getDiffuse(vec4 d_vertexNormal, vec4 d_vertexPosition, vec4 d_diffuseColor)
+};
+	vec4 DirectionalLight_getDiffuse(DirectionalLight d_light, vec4 d_vertexNormal, vec4 d_vertexPosition, vec4 d_diffuseColor)
 	{
-		return max(dot(d_vertexNormal, direction), 0)
-			* d_diffuseColor * color * strength;
+		return max(dot(d_vertexNormal, d_light.direction), 0)
+			* d_diffuseColor * d_light.color * d_light.strength;
 	}
-	vec4 getSpecular(vec4 s_vertexNormal, vec4 s_vertexPosition, vec4 s_specularColor, mat4 s_modelView, float s_strength)
+	vec4 DirectionalLight_getSpecular(DirectionalLight s_light, vec4 s_vertexNormal, vec4 s_vertexPosition, vec4 s_specularColor, mat4 s_modelView, float s_strength)
 	{
 		vec4 s_camera_position = inverse(s_modelView)[3];
 		vec4 s_camera_direction = normalize(s_camera_position - s_vertexPosition);
-		vec4 s_ref_direction = reflect(-direction, s_vertexNormal);
+		vec4 s_ref_direction = reflect(-s_light.direction, s_vertexNormal);
 		return pow(max(dot(s_camera_direction, s_ref_direction), 0.0), 32)
-			* s_specularColor * color * strength * s_strength;
+			* s_specularColor * s_light.color * s_light.strength * s_strength;
 	}
-};
+
 uniform DirectionalLight _mainLight;
 
 struct PointLight {
@@ -52,26 +53,26 @@ struct PointLight {
     vec4 position;
     vec4 color;
 	float strength;
-	vec4 getDiffuse(vec4 d_vertexNormal, vec4 d_vertexPosition, vec4 d_diffuseColor)
+};
+	vec4 PointLight_getDiffuse(PointLight d_plight, vec4 d_vertexNormal, vec4 d_vertexPosition, vec4 d_diffuseColor)
 	{
-		vec4 d_light_direction = normalize(position - d_vertexPosition);
-		float d_light_distance = distance(position, d_vertexPosition);
+		vec4 d_light_direction = normalize(d_plight.position - d_vertexPosition);
+		float d_light_distance = distance(d_plight.position, d_vertexPosition);
 		return max(dot(d_vertexNormal, d_light_direction), 0)
-			* d_diffuseColor * color * strength
+			* d_diffuseColor * d_plight.color * d_plight.strength
 			/ (d_light_distance*d_light_distance);
 	}
-	vec4 getSpecular(vec4 s_vertexNormal, vec4 s_vertexPosition, vec4 s_specularColor, mat4 s_modelView, float s_strength)
+	vec4 PointLight_getSpecular(PointLight s_plight, vec4 s_vertexNormal, vec4 s_vertexPosition, vec4 s_specularColor, mat4 s_modelView, float s_strength)
 	{
-		vec4 s_light_direction = normalize(position - s_vertexPosition);
-		float s_light_distance = distance(position, s_vertexPosition);
+		vec4 s_light_direction = normalize(s_plight.position - s_vertexPosition);
+		float s_light_distance = distance(s_plight.position, s_vertexPosition);
 		vec4 s_camera_position = inverse(s_modelView)[3];
 		vec4 s_camera_direction = normalize(s_camera_position - s_vertexPosition);
 		vec4 s_ref_direction = reflect(-s_light_direction, s_vertexNormal);
 		return pow(max(dot(s_camera_direction, s_ref_direction), 0.0), 32)
-			* s_specularColor * color * strength * s_strength
+			* s_specularColor * s_plight.color * s_plight.strength * s_strength
 			/ (s_light_distance*s_light_distance);
 	}
-};
 
 uniform PointLight lights[LIGHT_POINT_MAX];
 
@@ -102,12 +103,12 @@ void main(){
 	vec4 specular_tex_color = specular_tex;
 	for	(int i = 0; i < LIGHT_POINT_MAX; i++){
 		if(lights[i].enabled){
-			diffuse += lights[i].getDiffuse(frag_Normal_n, frag_Pos, albedoColor * _color_diffuse);
-			specular += lights[i].getSpecular(frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
+			diffuse += PointLight_getDiffuse(lights[i], frag_Normal_n, frag_Pos, albedoColor * _color_diffuse);
+			specular += PointLight_getSpecular(lights[i], frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
 		}
 	}
-	diffuse += _mainLight.getDiffuse(frag_Normal_n, frag_Pos, albedoColor * _color_diffuse);
-	specular += _mainLight.getSpecular(frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
+	diffuse += DirectionalLight_getDiffuse(_mainLight, frag_Normal_n, frag_Pos, albedoColor * _color_diffuse);
+	specular += DirectionalLight_getSpecular(_mainLight, frag_Normal_n, frag_Pos, specular_tex_color + _color_specular, mv_Mat, specular_tex.w + _specular_strength);
 
 //RESULT
 vec4 finalColor = 
